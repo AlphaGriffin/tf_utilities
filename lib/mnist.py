@@ -1,5 +1,4 @@
 #!/usr/bin/python
-#
 # Copyright (C) 2016 Alpha Griffin
 
 """  THIS HELPER WILL DEAL WITH THE MNIST DATASET   """

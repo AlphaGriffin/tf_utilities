@@ -10,6 +10,6 @@ The Mnist Exersise has been put through its paces and works from the examples fo
  ~ tqdm          - is good.
  ~ scikit-learn  - for the visualizations.
 
- # Need a setup py for installation
+# Need a setup py for installation
 
 # Need More examples

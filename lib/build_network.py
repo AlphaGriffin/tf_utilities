@@ -1,12 +1,19 @@
 #!/usr/bin/python
 #
 # Copyright (C) 2016 Alpha Griffin
+# fixme : add load and save functionality
+# fixme : add in automatic tensorboard output
+# fixme : output as much as possible to the options!
+# Copyright (C) 2017 Alpha Griffin
 
 """  THIS HELPER WILL DEAL WITH THE NEW TENSORFLOW MODELS  """
 
 import tensorflow as tf
 
 ## the MNIST-10 BREAKOUT is the EXPECTED !NECESSARY! datalinks... will be clearer when i can be
+
+## New adjustments will be made to accomedate the Tkart dataset!
+
 class Build_Adv_Network(object):
     def __init__(self, options = None, model = None, init = True):
         self.model = model
@@ -16,6 +23,7 @@ class Build_Adv_Network(object):
             self.options = self.model.options           
         ## HERE WE GO!!
         if init: self.init_new_graph();
+        # IF NOT Pull up an old one
     
     #def if model = none then show a list of available models in bank    
         

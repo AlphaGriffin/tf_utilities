@@ -35,9 +35,7 @@ print("Size of:")
 print("- Training-set:\t\t{}".format(len(data.train_labels)))
 print("- Test-set:\t\t{}".format(len(data.test_labels)))
 print("- Validation-set:\t{}".format(len(data.validation_labels)))
-
 print("##########################################################\n")
-
 mnist_network   = net.Build_Adv_Network(options=options,model=data)
 Werx            = proc.Process_Network(mnist_network)
 print("- Optimizer Settings:\n{}".format(Werx.network.optim()))
