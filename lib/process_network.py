@@ -31,8 +31,9 @@ class Process_Network(object):
     def optimize(self):
         x_batch, y_true_batch = self.model.trainer.next_batch(self.options.batch_size);
         #x_batch, y_true_batch = self.model.get_batch();
-        self.feed_train = self.network.feed_dictionary(test=False, x_batch=x_batch, y_true_batch=y_true_batch);
-        self.network.session.run(self.network.optimizer, feed_dict=self.feed_train)
+        if len(x_batch) is len(y_true_batch):
+            self.feed_train = self.network.prob_dictionary(test=False, x_batch=x_batch, y_true_batch=y_true_batch);
+            self.network.session.run(self.network.optimizer, feed_dict=self.feed_train)
     
     # Silent October
     def long_haul(self, iters=1):

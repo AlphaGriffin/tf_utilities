@@ -31,19 +31,24 @@ class Build_Adv_Network(object):
         if self.options.verbose: print("Loading fresh Graph with the Given dataset");
         self.build_default_values()                       # Build a CNN Classifier
         self.session = tf.Session()                       # Put a quarter in the TF machine
-        self.session.run(tf.initialize_all_variables())   # Turn it on
-        self.feed_test = self.feed_dictionary()           # Prep Test data for processing
-        self.test_IMAGE = self.dataset.images_test[0]
+        self.session.run(tf.global_variables_initializer())   # Turn it on
+        self.test_IMAGE = self.dataset.test_images[0]
+        self.feed_test = self.prob_dictionary()           # Prep Test data for processing
+        
         if self.options.verbose: print("New Network is prepared for processing!");
         
     def build_default_values(self):
         
         """ Do Basic Steps """
-        self.x            = self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.img_size_flat])
+        self.x            = self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width])
         self.y_true       = self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes])
         self.y_true_cls   = self.Input_True_Labels = tf.argmax(self.y_true, dimension=1) # dynamic instead of static... duh...
-        self.x_image      = tf.reshape(self.x, [-1, self.dataset.img_size, self.dataset.img_size, self.dataset.num_channels])
-        self.LAYER        = self.x_image
+        if self.dataset.img_size is None:
+            self.x_image      = tf.reshape(self.x, [-1, self.dataset.height, self.dataset.width, self.dataset.num_channels])
+        else:
+            self.x_image      = tf.reshape(self.x, [-1, self.dataset.img_size, self.dataset.img_size, self.dataset.num_channels])
+        self.LAYER            = self.x_image
+        self.keep_prob        = tf.placeholder(tf.float32) # new feature goes with the dropout option
         
         """ Do Advanced Steps """
         self.convlayerNames, self.Conv_layers, self.Conv_weights   = self.BUILD_CONV_LAYERS(self.options.conv_layers) ## BUILD LAYERS
@@ -64,6 +69,7 @@ class Build_Adv_Network(object):
         """ PlaceHolders """
         self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
         self.accuracy           = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+        
       
     def BUILD_CONV_LAYERS(self, layers):
         self.conv_layers_nameslist = []
@@ -109,6 +115,7 @@ class Build_Adv_Network(object):
         input = self.features
         output = self.options.fc_size
         use_reLu  = True
+        use_Drop = True
         if self.options.verbose: print("Building Fully Connected Layers");
         for layer in range(layers):
             if layers == 0:  ## this is right ... just seems wrong becuase # of convs up... # of input fc goes down
@@ -128,7 +135,8 @@ class Build_Adv_Network(object):
             self.LAYER = self.new_fc_layer(input        = self.LAYER,
                                            num_inputs   = input,
                                            num_outputs  = output,
-                                           use_relu     = use_reLu, )
+                                           use_relu     = use_reLu,
+                                           use_drop     = use_Drop)
             layer_name = "fullyLayer_%s" % layer
             self.fc_layers_nameslist.append(layer_name)
             self.fc_layers_list.append(self.LAYER)
@@ -191,12 +199,14 @@ class Build_Adv_Network(object):
         print("## This step is being overlooked ... but appears i think to be working... stuff...")
         return layer_flat, num_features
         
-    def new_fc_layer(self, input, num_inputs, num_outputs, use_relu=True):
+    def new_fc_layer(self, input, num_inputs, num_outputs, use_relu=True,use_drop=False):
         weights = self.new_weights(shape=[num_inputs, num_outputs])        # set weights 
         biases = self.new_biases(length=num_outputs)                       # set number of OUTPUTS like give me top k or whatever...  
         layer = tf.matmul(input, weights) + biases                         # this is a #BIGMATH func
         if use_relu:
             layer = tf.nn.relu(layer)
+        if use_drop:
+            layer = tf.nn.dropout(layer,self.keep_prob)
         return layer
     
     def feed_single(self, layer, image=None):
@@ -207,10 +217,25 @@ class Build_Adv_Network(object):
         return values, img
 
     
+    def prob_dictionary(self, test=True, x_batch=None, y_true_batch=None, keep=None):
+        in_tensor = self.x
+        in_tensor_label = self.Input_Tensor_Labels
+        keep_prob = self.keep_prob
+        
+        if not test:
+            dataset_dictionary = { in_tensor:x_batch,
+                                  in_tensor_label:y_true_batch,
+                                  keep_prob:keep }                                  
+        else:           
+            dataset_dictionary = { in_tensor: self.model.test_images,
+                                  in_tensor_label:self.model.test_labels,
+                                  keep_prob:keep }
+        return dataset_dictionary
+        
     def feed_dictionary(self, test=True, x_batch=None, y_true_batch=None):
         dataset = self.model
         #return { INPUT_TENSOR: INPUT_IMG, INPUT_TENSOR_LABEL:input_label, inuput_true_: Test_cls}
-        in_tensor = self.Input_Tensor_Images
+        in_tensor = self.x_image
         in_tensor_label = self.Input_Tensor_Labels
         in_true = self.Input_True_Labels
         if test is not True:
