@@ -148,7 +148,7 @@ class hvass_ipython(object):
         plt.show()
         
        
-    def plot_conv_weights(self, weights, input_channel=0):
+    def plot_conv_weights(self, weights, input_channel=0): 
         w = weights
         w_min = np.min(w)
         w_max = np.max(w)

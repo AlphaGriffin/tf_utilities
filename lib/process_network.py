@@ -24,9 +24,29 @@ class Process_Network(object):
         
     ## SHOULD RETURN A LIST OF AVAILABLE MODELS SAVED IN THE TANK!
     
+    def stupid_loss(self):
+        thing1 = tf.reduce_mean(tf.square(tf.sub(self.network.Input_Tensor_Labels, self.network.LAYER)))
+        print (thing1)
+        print(self.network.train_vars)
+        thing2 = tf.add_n([tf.nn.l2_loss(v) for v in self.network.train_vars]) * self.options.L2NormConst
+        loss_1 = thing1 + thing2
+        print(loss_1)
+        #loss = tf.reduce_mean(tf.square(tf.sub(self.network.Input_Tensor_Labels, self.network.LAYER))) +\
+        #tf.add_n([tf.nn.l2_loss(v) for v in self.network.train_vars]) * self.options.L2NormConst
+        return loss_1
+    
     def BE_DONE(self):
         self.network.session.close()
     
+    #The Real work of the thing... you could run this and be done.
+    def optimize_stupid(self):
+        x_batch, y_true_batch = self.model.trainer.next_batch(self.options.batch_size);
+        #x_batch, y_true_batch = self.model.get_batch();
+        if len(x_batch) is len(y_true_batch):
+            self.feed_train = self.network.prob_dictionary(test=False, x_batch=x_batch, y_true_batch=y_true_batch, keep=0.8);
+            self.network.session.run(self.stupid_loss(), feed_dict=self.feed_train)
+    
+        
     #The Real work of the thing... you could run this and be done.
     def optimize(self):
         x_batch, y_true_batch = self.model.trainer.next_batch(self.options.batch_size);
@@ -35,6 +55,13 @@ class Process_Network(object):
             self.feed_train = self.network.prob_dictionary(test=False, x_batch=x_batch, y_true_batch=y_true_batch);
             self.network.session.run(self.network.optimizer, feed_dict=self.feed_train)
     
+    # Silent October
+    def long_haul_stupid(self, iters=1):
+        for i in self.progress(range(iters)):
+            self.werk_done += 1 # tick the clock
+            self.optimize_stupid() #do the work
+        return self.print_acc(),self.werk_done
+            
     # Silent October
     def long_haul(self, iters=1):
         for i in self.progress(range(iters)):
@@ -93,6 +120,17 @@ class Process_Network(object):
        self.ipy.plot_confused(cm,num_classes)
        self.ipy.simple_plot(images=img, cls_true=cls_t, cls_pred=cls_p)
     
+    def print_samples(self):
+        x = self.model.train_images[0:9]
+        y = self.model.train_labels[0:9]
+        index = 0
+        for i in x:
+            print("img {} label = {}".format(i,y[index]))
+            index += 1
+       
+    def train_step(self, Dict): pass
+        
+            
     # For LEARNING(EDUCATIONAL) pourpose, use Long Haul for faster work.
     def process_verbose(self, iters=1):
         start_time = time.time() 
