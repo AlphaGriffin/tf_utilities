@@ -5,33 +5,40 @@
 """  THIS HELPER WILL DEAL WITH THE IPYTHON PLOTTING   """
 import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm as tqdm_notebook
+from tqdm import tqdm_notebook
 import math
-
-def __init__():
-    pass
-
+from PIL import Image
+     
 class ipython(object):
+    """ 
+    Most of the derived from the Hvass Ipython Tutorials: 
+        https://github.com/Hvass-Labs/TensorFlow-Tutorials
+    """
     def __init__(self):
-        self.test = 1
-        pass
-    
-    def progress(self):
-        return tqdm_notebook
-        
-class hvass_ipython(object):
-    def __init__(self, model=None, network=None):
-        #self.utils = utils
-        self.model = model
-        self.network = network
-        if self.model is not None:
-            self.options = model.options
-        if self.network is not None:
-            self.model = self.network.model
-            self.options = self.network.options
+        """ Its better if this relies on nothing but its own tools """
+        # Setup TQDM for ranges
+        self.progess = tqdm_notebook
+        # Setup matplot lib
         self.plt = plt
-        self.test = 1
     
+    
+    def get_img_details(self, image):
+        """ Use PIL to get image Details """
+        try:
+            img = Image.open(image)
+        except:
+            print("Cannot open file {}".format(image))
+            return False
+        return img.width, img.height, img.filename
+    
+    def plot_image(self, image):
+        if self.model.img_shape is None or 'NoneType': img_size = 28;
+        else: img_size = self.model.img_shape
+        img_shape = (img_size, img_size)        
+        self.plt.imshow(image.reshape(img_shape),
+                        interpolation='nearest',
+                        cmap='binary')    
+        self.plt.show()
     # works for mnistdataset plot...
     def simple_plot(self, images, cls_true, cls_pred=None, logits=None, smooth=True):    
         assert len(images) == len(cls_true) == 9
@@ -167,15 +174,6 @@ class hvass_ipython(object):
             ax.set_xticks([])
             ax.set_yticks([])
         plt.show()
-        
-    def plot_image(self, image):
-        if self.model.img_shape is None or 'NoneType': img_size = 28;
-        else: img_size = self.model.img_shape
-        img_shape = (img_size, img_size)        
-        self.plt.imshow(image.reshape(img_shape),
-                        interpolation='nearest',
-                        cmap='binary')    
-        self.plt.show()
     
     def plot_conv_layer(l):
         values = l

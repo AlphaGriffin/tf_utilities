@@ -8,21 +8,17 @@ os.chdir('/home/eric/git/tf_utilities/') # make sure you are working in the righ
 os.system('clear')
 """ My Libs """
 #import lib.mnist as mnist                # Start a custom dataset based on the given dataset + special sauce
-import lib.tkdata as tkdata               # Start a custom dataset based on the given dataset + special sauce
+import lib.mupen64 as tkdata               # Start a custom dataset based on the given dataset + special sauce
 import lib.build_network as net           # Plug all the data into Tensorflow... very carefully...
 import lib.process_network as proc        # Actually run the TF machine
 
 class options(object):
-    def __init__(self, verbose=True, learning_rate=1e-5, batch_size=42, optimizer=2, entropy=1, conv_layers=2,
-                 fc_layers=4, f_size=9, fc_size = 512, iters = 7500,):
+    def __init__(self, verbose=False, learning_rate=1e-5, batch_size=42, optimizer=2, conv_layers=5,
+                 fc_layers=5, f_size=5, fc_size = 256, iters = 99,):
         self.verbose = verbose
-        self.model_path = 'models/tkart/'
-        self.dataset_path = 'dataset/tkart/'
-        self.dataset_outpath = 'dataset/tkartbin/'
         self.learning_rate = learning_rate
         self.batch_size = batch_size 
         self.optimizer = optimizer
-        self.entropy = entropy
         self.iters = iters
         
         ## CNN options
@@ -30,13 +26,9 @@ class options(object):
         self.fc_layers = fc_layers              # of fully connected layers 2 stock     
         self.f_size = f_size                    # fixed size not file size... silly 5 stock
         self.fc_size = fc_size                  # of elements in FC flatened layers
-        
-        # Image options
-        self.image_h = 66
-        self.image_w = 200
 
 # HAVE AT THEE!        
-TEST_OPTIONS_ONE   = options_(verbose = True, learning_rate=1e-4,batch_size=64,optimizer=2)
+TEST_OPTIONS_ONE   = options()
 options            = TEST_OPTIONS_ONE
 data               = tkdata.tkdata_DATASET(options)
 print("##########################################################\n")
