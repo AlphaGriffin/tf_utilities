@@ -44,24 +44,35 @@ class Process_Network(object):
         
     def run(self, epochs=5):
         """ This will perform the optimize function"""
+        
+        # BOOLEAN HACK...
+        is_running = True
+        
         # always run a .. .run timer... its in the name
         start_time = time.time() 
         start_readout = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-        current_epoch = self.dataset._epochs_completed
-        goal_train = current_epoch + epochs
+        self.current_epoch = self.dataset._epochs_completed
+        goal_train = self.current_epoch + epochs
         print("Start Time: {}\nTraining {} epochs...".format(start_readout,goal_train))
-        while current_epoch < goal_train:
+        #while self.current_epoch < goal_train:
+        while is_running:
             batch = self.dataset.next_batch(self.options.batch_size)
             current_epoch = batch[2]
-            print("Begining to process epoch {}".format(current_epoch), end="\r")
+            print("Begining to process epoch {}".format(current_epoch))
+            
             if len(batch[0]) is len(batch[1]):
                 # setup up a dict
-                Dict = {self.network.Input_Tensor_Images: batch[0], self.network.Input_Tensor_Labels: batch[1], self.network.keep_prob: 0.7}
+                Dict = {self.network.Input_Tensor_Images: batch[0], self.network.Input_Tensor_Labels: batch[1], self.network.keep_prob: 0.8}
                 
                 # This is the optimize function
                 self.network.session.run(self.network.optimizer, feed_dict=Dict)
                 self.werk_done += 1
                 print("Begining to process iter {}".format(self.werk_done), end="\r")
+            
+            # dont run again !
+            if current_epoch is goal_train:
+                is_running = False
+                print("Duck out of loop")
         print("Finished Training... Waiting on some Info...")
         batch = self.dataset.next_batch(self.options.batch_size)
         self.feedback(batch)
@@ -71,55 +82,31 @@ class Process_Network(object):
         print(time_msg, ", Iters Complete: %s" % self.werk_done)
    
     def feedback(self,training_batch=False):
-        
-        ##
-        ## DEBUGS
-        ##
-        """WORKING THROUGH THE FEEDBACK DEBUGS!! 2_23_17"""
+        """WORKING THROUGH THE FEEDBACK DEBUGS!! 2_23_17  * finished same day... BOOM..."""
         
         """This will do a test for acc and loss"""
         testing_start = 110 # should be randowm less than the _num examples
         msg = "Feedback: \n"
         msg += "Total Epochs Complete: {}\n".format(self.dataset._epochs_completed)
         msg += "Total Optimizations Complete: {}\n".format(self.werk_done)
-        #print(msg)
         Testing_set_images = self.dataset.train_images[testing_start:(testing_start+self.options.batch_size)]
         Testing_set_labels = self.dataset.train_labels[testing_start:(testing_start+self.options.batch_size)]
-        print("Testing dataset size(should be batchsize: {}): {}".format(self.options.batch_size,Testing_set_images.shape[0]))
         test_dict = {self.network.Input_Tensor_Images: Testing_set_images, self.network.Input_Tensor_Labels: Testing_set_labels, self.network.keep_prob: 1.0}
         
         # this is the get_loss function
-        try:
-            print("Attempting trying loss function on test data", end="\r")
-            loss = self.network.loss.eval(feed_dict=test_dict)
-            msg += "Test Loss: {:.7}\n".format(loss)
-            print("Attempting trying loss function test data - Pass")
-        except:
-            print("DEBUGS FAIL 1")
+        loss = self.network.loss.eval(feed_dict=test_dict)
+        msg += "Test Loss: {:.3}\n".format(loss)
             
         # this is the print acc funtion
-        try:
-            print("Attempting trying accuracy function on test data", end="\r")
-            test_acc = self.network.session.run(self.network.accuracy, feed_dict=test_dict)
-            msg += "Test Acc: {:.5}\n".format(test_acc)
-            print("Attempting trying accuracy function on test data - Pass")
-        except:
-            print("DEBUGS!!!! 2 !!! Fail!")
-        #print(msg)
-        # there should be a get confusted 
-        # and a print weights
+        test_acc = self.network.session.run(self.network.accuracy, feed_dict=test_dict)
+        msg += "Test Acc: {:.5}\n".format(test_acc)
         
         if training_batch:
-            try:
-                print("Attempting trying Training_set on BOTH funct")
-                training_dict = {self.network.Input_Tensor_Images: training_batch[0], self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
-                loss = self.network.loss.eval(feed_dict=training_dict)
-                msg += "Train Loss: {:.5}\n".format(loss)
-                #test_acc = self.network.session.run(self.network.accuracy, feed_dict=training_dict)
-                #msg += "Train Acc: {:.3}\n".format(loss)
-                print("Attempting trying accuracy function on test data - Pass")
-            except:
-                print("DEBUGS!!!! 3 !!! FAIL")
+            training_dict = {self.network.Input_Tensor_Images: training_batch[0], self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
+            train_loss = self.network.loss.eval(feed_dict=training_dict)
+            msg += "Train Loss: {:.3}\n".format(train_loss)
+            train_acc = self.network.session.run(self.network.accuracy, feed_dict=training_dict)
+            msg += "Train Acc: {:.3}\n".format(train_acc)
         print(msg)
         
 
