@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
- DUMMYSCRIPT.COM
+DUMMYSCRIPT.COM
 this is the dummy complete Tensorflow TKART
 """
 import os

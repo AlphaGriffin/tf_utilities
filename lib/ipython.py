@@ -187,8 +187,4 @@ class ipython(object):
             ax.set_xticks([])
             ax.set_yticks([])
         plt.show()        
-    """             NEXT THING !!!         """      
-         
-        
-        
-        
+    """             NEXT THING !!!         """
