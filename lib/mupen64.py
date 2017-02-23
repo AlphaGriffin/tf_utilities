@@ -44,13 +44,6 @@ class mupenDataset(object):
         
         # split up Alldata into some chunks we can use 
         self.train_images, self.train_labels, self.test_images, self.test_labels = self.split(self._all_images_, self._all_labels_)
-        
-        #_train_images, _train_labels, _test_images, _test_labels = self.split(self._all_images_, self._all_labels_)
-        
-        #self.train_images = _train_images 
-        #self.train_labels = _train_labels
-        #self.test_images = _test_images
-        #self.test_labels = _test_labels
         self.train_cls = np.array([label.argmax() for label in self.train_labels])
         self.test_cls = np.array([label.argmax() for label in self.test_labels])
         

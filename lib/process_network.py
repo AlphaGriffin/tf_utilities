@@ -1,10 +1,11 @@
-import tensorflow as tf
+#mport tensorflow as tf
 import time
 from datetime import timedelta
+#from time import sleep
 #from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 #from tqdm import tqdm_notebook as tqdm
-#import numpy as np
+import numpy as np
 """
 DESCRIPTION:
     TF - Manager "codenamed: process_network"
@@ -15,6 +16,24 @@ CURRENT WORK:
 TODO:
     complete load / save / cue transfer
 """
+CURSOR_UP="\033[F"
+CLEAR_LINE="\033[K"
+""" TEST SET """
+def backup_print_less(msg):
+    return "{}{}{}{}".format(CURSOR_UP,CLEAR_LINE,CURSOR_UP,msg) 
+                
+def backup_print(msg):
+    return "{}{}{}{}".format(CURSOR_UP,CLEAR_LINE,CURSOR_UP,msg)
+    
+def extend_string(s, l):
+    return (s*l)[:l]
+
+def clear_screen():
+    print(extend_string(backup_print("DummyScript.com"),55))
+
+    
+    
+""" real Deal """
 class Process_Network(object):
     """ This class handles Opimization / Visualization for TF Models """
     def __init__(self, network, ipy=None):
@@ -50,7 +69,7 @@ class Process_Network(object):
         
         # always run a .. .run timer... its in the name
         start_time = time.time() 
-        start_readout = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+        start_readout = time.strftime("%a, %d %b %Y %H:%M:%S\n\n", time.gmtime())
         self.current_epoch = self.dataset._epochs_completed
         goal_train = self.current_epoch + epochs
         print("Start Time: {}\nTraining {} epochs...".format(start_readout,goal_train))
@@ -58,16 +77,18 @@ class Process_Network(object):
         while is_running:
             batch = self.dataset.next_batch(self.options.batch_size)
             current_epoch = batch[2]
-            print("Begining to process epoch {}".format(current_epoch))
+            print(backup_print("##\tEpoch: {}\n##\tIter: {}".format(current_epoch,self.werk_done)))
             
             if len(batch[0]) is len(batch[1]):
                 # setup up a dict
                 Dict = {self.network.Input_Tensor_Images: batch[0], self.network.Input_Tensor_Labels: batch[1], self.network.keep_prob: 0.8}
                 
                 # This is the optimize function
+                #self.network.session.run(self.network.optimizer2, feed_dict=Dict)
                 self.network.session.run(self.network.optimizer, feed_dict=Dict)
                 self.werk_done += 1
-                print("Begining to process iter {}".format(self.werk_done), end="\r")
+            else:
+                clear_screen()
             
             # dont run again !
             if current_epoch is goal_train:
@@ -94,21 +115,64 @@ class Process_Network(object):
         test_dict = {self.network.Input_Tensor_Images: Testing_set_images, self.network.Input_Tensor_Labels: Testing_set_labels, self.network.keep_prob: 1.0}
         
         # this is the get_loss function
-        loss = self.network.loss.eval(feed_dict=test_dict)
-        msg += "Test Loss: {:.3}\n".format(loss)
+        test_loss = self.network.loss.eval(feed_dict=test_dict)
+        msg += "Test Loss: {:.1%}\n".format(test_loss)
             
         # this is the print acc funtion
         test_acc = self.network.session.run(self.network.accuracy, feed_dict=test_dict)
-        msg += "Test Acc: {:.5}\n".format(test_acc)
+        msg += "Test Acc: {:1%}\n".format(test_acc)
         
         if training_batch:
             training_dict = {self.network.Input_Tensor_Images: training_batch[0], self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
             train_loss = self.network.loss.eval(feed_dict=training_dict)
-            msg += "Train Loss: {:.3}\n".format(train_loss)
+            msg += "Train Loss: {:.1%}\n".format(train_loss)
             train_acc = self.network.session.run(self.network.accuracy, feed_dict=training_dict)
-            msg += "Train Acc: {:.3}\n".format(train_acc)
+            msg += "Train Acc: {:1%}\n".format(train_acc)
+        if self.verbose: print(msg)
         print(msg)
         
+    """ RECLAMATION YARD """
+
+    def BATCH_VERIFY(self, input_tensor, labels, cls_true):
+        batch_size = self.options.batch_size
+        num_images = len(input_tensor)
+        cls_pred = np.zeros(shape=num_images, dtype=np.int)
+        i = 0
+        while i < num_images:
+            j = min(i + batch_size, num_images) # j is remade frest every loop...
+            #feed_dict = self.network.feed_dictionary(test=False,x_batch=input_tensor, y_true_batch=labels)
+            feed_dict = {self.network.Input_Tensor_Images: input_tensor[i:j, :], self.network.Input_Tensor_Labels: labels[i:j, :]}
+            cls_pred[i:j] = self.network.session.run(self.network.y_pred_cls, feed_dict=feed_dict)
+            i = j
+        correct = (cls_true == cls_pred)   
+        return correct, cls_pred   
+        
+    def run_test(self):
+        return self.BATCH_VERIFY(input_tensor = self.dataset.test_images,
+                                 labels       = self.dataset.test_labels,
+                                 cls_true     = self.dataset.test_cls)
+    # NOT IMPLEMENTED YET...  
+    def run_valid(self):
+        return self.BATCH_VERIFY(input_tensor = self.dataset.valid_images,
+                                 labels       = self.dataset.valid_labels,
+                                 cls_true     = self.dataset.valid_cls)
+        
+    def run_train(self,):
+        x = self.network.session.run(self.network.accuracy, feed_dict=self.feed_train)                   ## TRAINING ACCURACY   
+        return x
+        
+    def challenge(self,):
+        #train_acc   = self.run_train()
+        test, _     = self.run_test()
+        #valid, _    = self.run_valid()
+        test_sum    = test.sum()
+        #valid_sum   = valid.sum()
+        
+        test_acc    = float(test_sum) / len(test)
+        #valid_acc   = float(valid_sum) / len(valid)
+        return train_acc, test_acc#, valid_acc
+        
+
 
 """Graveyard... some things need rework..."""
 #    # RETURNING w for IPY.plot_weights 

@@ -99,9 +99,11 @@ class Build_Adv_Network(object):
         self.cross_entropy  = tf.nn.softmax_cross_entropy_with_logits(logits=self.x_image, labels=self.Input_Tensor_Labels) 
         self.testing        = tf.square(tf.sub(self.Input_Tensor_Labels, self.x_image))
         self.cost           = tf.reduce_mean(self.testing)
+        self.cost2          = tf.reduce_mean(self.cross_entropy)
         training_vars       = tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * self.options.L2NormConst
         self.loss           = self.cost + training_vars
         self.optimizer      = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.loss)
+        self.optimizer2     = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.cost2)
         
         """ PlaceHolders """
         self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
@@ -153,10 +155,10 @@ class Build_Adv_Network(object):
             elif layer > 0:
                 img = reducing_shape
                 channel = last_num_f
-                print("LAST NUMBER OF FILERS = INPUT CHANNELS =  %s" % channel)
+                if self.options.verbose:print("LAST NUMBER OF FILERS = INPUT CHANNELS =  %s" % channel)
                 
             last_num_f = num_f
-            print("NEW NUMBER OF Channels = %s" % channel)
+            if self.options.verbose:print("NEW NUMBER OF Channels = %s" % channel)
             reducing_shape, w = self.new_conv_layer(input       = img,
                                                     filter_size = f_size,
                                                     chan        = channel,
@@ -166,7 +168,7 @@ class Build_Adv_Network(object):
             self.conv_layers_list.append(reducing_shape)
             self.conv_layers_wlist.append(w)
             self.x_image = reducing_shape
-            print("done with layer: %s"%layer)
+            if self.options.verbose:print("done with layer: %s"%layer)
             #print("#: Finished building %s:\n%s\n:##:\n" % (layer_name, self.LAYER))
             
         #if self.options.verbose: print("Finished Building %s Conv Layers" % layers);
@@ -175,7 +177,7 @@ class Build_Adv_Network(object):
     def BUILD_FC_LAYER(self, layers):
         self.fc_layers_nameslist = []
         self.fc_layers_list = []
-        print("# input features size = %s" % self.features)
+        if self.options.verbose:print("# input features size = %s" % self.features)
         #first time thru options
         input = self.features
         output = self.options.fc_size
@@ -196,8 +198,8 @@ class Build_Adv_Network(object):
                 use_reLu  = False # dont use on the last time thru
                 use_Drop = False
                         
-            print(" input layers: %s" % input)
-            print(" output layers: %s" % output)
+            if self.options.verbose:print(" input layers: %s" % input)
+            if self.options.verbose:print(" output layers: %s" % output)
             self.x_image = self.new_fc_layer(input        = self.x_image,
                                            num_inputs   = input,
                                            num_outputs  = output,
@@ -206,7 +208,7 @@ class Build_Adv_Network(object):
             layer_name = "fullyLayer_%s" % layer
             self.fc_layers_nameslist.append(layer_name)
             self.fc_layers_list.append(self.x_image)
-            print("building %s:\n%s" % (layer_name, self.x_image))
+            if self.options.verbose:print("building %s:\n%s" % (layer_name, self.x_image))
         if self.options.verbose: print("Finished Building %s Fully Connected Layers" % layers);
         return self.fc_layers_nameslist, self.fc_layers_list
     
@@ -220,10 +222,10 @@ class Build_Adv_Network(object):
         return tf.Variable(tf.constant(0.05, shape=[length]))
        
     def new_conv_layer(self, input, filter_size, chan, num_filters, use_pooling=True):
-        #print("#:\tStarting new conv Layer!...")                
+        if self.options.verbose:print("#:\tStarting new conv Layer!...")                
         X_shape = [filter_size, filter_size, chan, num_filters]
         weights = self.new_weights(shape  = X_shape)
-        #print("#: weights shape = %s" % X_shape)        
+        if self.options.verbose:print("#: weights shape = %s" % X_shape)        
         biases = self.new_biases(length   = num_filters)
         
         """ THis is the MAGIC again... """
@@ -238,15 +240,15 @@ class Build_Adv_Network(object):
                                    strides = [1, 2, 2, 1],  # 2 x 2 stride... could increase... check
                                    padding='SAME')          # i feel like this should already be in variable, but w/e               
         layer = tf.nn.relu(layer)                           # rectified linear Unit ... like a boss
-        #print("Finished Building a conv Layer:\n\t%s" % layer)        
+        if self.options.verbose:print("Finished Building a conv Layer:\n\t%s" % layer)        
         return layer, weights
            
     def flatten_layer(self, layer):
         layer_shape = layer.get_shape()                    # ASSERT layer_shape == [num_images, img_height, img_width, num_channels]
         num_features = layer_shape[1:4].num_elements()     # like a boss...
         layer_flat = tf.reshape(layer, [-1, num_features]) # yep...
-        print(layer_flat)
-        print("## This step is being overlooked ... but appears i think to be working... stuff...")
+        if self.options.verbose:print(layer_flat)
+        print("## DummyScript.com")
         return layer_flat, num_features
         
     def new_fc_layer(self, input, num_inputs, num_outputs, use_relu=True,use_drop=False):
