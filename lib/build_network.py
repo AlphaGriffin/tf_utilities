@@ -107,7 +107,7 @@ class Build_Adv_Network(object):
         
         """ PlaceHolders """
         self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
-        self.accuracy           = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+        self.accuracy           = tf.reduce_mean(tf.cast (self.correct_prediction, tf.float32))
         
         """ Initialize the session """
         self.session.run(tf.global_variables_initializer())   # Turn it on
