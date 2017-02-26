@@ -3,6 +3,7 @@
 /models
 /exportToHTML
 .idea
+/hiddenStuff
 
 # HG Stuff
 .hg/

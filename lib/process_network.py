@@ -41,8 +41,8 @@ class procNet(object):
             sess = supervisor.managed_session()
         elif sessType is "Distributed":
             # hosts and works list need to be in the options
-            hosts = self.options.hosts
-        
+            self.hosts = self.options.hosts
+        return sess
     
 
 

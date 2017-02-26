@@ -1,34 +1,37 @@
 #!/usr/bin/python
 # Copyright (C) 2016 Alpha Griffin
 # Copyright (C) 2017 Alpha Griffin
+
 """
 Objective
 ---------
     build a more dynamic and easily tweakable TF frontend for eventual GUI.
-    
+
 Progress
 --------
     2-25-17: Adding more decoration to functions for long term readability
     and use. Also making ready for the first complete run of TKart.
-    
+
 TODO
 ----
-    * write a demo on how to go from start to finish. do a youtube video, 
+    * write a demo on how to go from start to finish. do a youtube video,
       build a docker. build a win exe. build wtf mac uses.
     * do a lot of catch variables for setup use... be verbose.
     * finish tensorboard dev output progess step.
     * finish distrubted gpu progess step.
     * finish UML output image.
-    
+
 Target for master push
 ----------------------
     * produce the tutorial results of the MNIST lesson and the TKart lesson
       with this setup.
     * produce a Tensorboard output with a guide for setup
 """
+
 import tensorflow as tf
-from PIL import Image
-import numpy as np
+from datetime import timedelta
+#import numpy as np
+import time
 
 """!!!DEV BUILD IN PROGRESS!!!"""
 
@@ -37,95 +40,95 @@ class Build_Adv_Network(object):
     Dynamically create a Tensorflow Network from the given Input Options.
     """
     def __init__(self, dataset = None, init = True):
+        """
+        example
+        -------
+        >>> network = build_network.Build_Adv_Network(Mupen64_dataset)
+        """
         self.dataset = dataset
         self.options = self.dataset.options
         # this is in the wrong place ... i think
         self.step_size = int(self.dataset._num_examples / self.options.batch_size)
 
         ## HERE WE GO!!
-        if init: self.init_new_graph();
-        else:
-            self.init_load_graph();
-        # IF NOT Pull up an old one
-    """
-    #def if model = none then show a list of available models in bank
-    def save_graph(self):
-        saver = tf.train.Saver()
-        save_path = self.options.save_path + '_best_validation_1_'
-        saver.save(sess=self.session, save_path=save_path)
+        #if init: self.init_new_graph();
 
-    def load_graph(self, graph=None):
-        if graph is None: graph = '_best_validation_1_'
-        saver = tf.train.Saver()
-        save_path = self.options.save_path + graph
-        saver.restore(sess=self.session, save_path=save_path)
-    
-    TODO:
-    def prepare_image(self, img):
-        #print("DEBUGS  1 {}".format(img))
-        pil_image = Image.open(img)# open img
-        x = pil_image.resize((200, 66), Image.ANTIALIAS) # resizes image in-place
-        numpy_img = np.array(x)         # convert to numpy
-        #grey_numpy_image = self.make_BW(numpy_img)
-        return numpy_img
-
-    def que_graph(self, Image):
-        try: vec = self.prepare_image(Image)
-        except: vec = Image
-        joystick = self.y.eval(feed_dict={self.x: [vec], self.keep_prob: 1.0})[0]
-        output = [
-                int(joystick[0] * 80),
-                int(joystick[1] * 80),
-                int(round(joystick[2])),
-                int(round(joystick[3])),
-                int(round(joystick[4])),
-            ]
-
-        for i in joystick:
-            print("joystick: {}".format(i))
-        print(output)
-        return output
-
-    def init_load_graph(self):
-        self.session = tf.InteractiveSession()
-        self.load_graph(self.session)
-    """
     def init_new_graph(self):
         self.session = tf.InteractiveSession()
         self.build_default_values('/gpu:0')
         #self.saver = tf.train.Saver()
 
         if self.options.verbose: print("New Network is prepared for processing!");
-    """
-    TODO:
-    def build_out_distrubited_graph(self):
-        cluster = ""
-        worker = ""
-        server = ""
-        
-        # Calculate the learning rate schedule.
-        num_batches_per_epoch = (cifar10.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN /
-                                 FLAGS.batch_size)
-        
-        decay_steps = int(num_batches_per_epoch * cifar10.NUM_EPOCHS_PER_DECAY)
     
-        # Decay the learning rate exponentially based on the number of steps.
-        lr = tf.train.exponential_decay(cifar10.INITIAL_LEARNING_RATE,
-                                        global_step,
-                                        decay_steps,
-                                        cifar10.LEARNING_RATE_DECAY_FACTOR,
-                                        staircase=True)
+###################################################################
+    """These are all impelemented in the above build function"""
+###################################################################
+    
+    def run_network(self, iters=50, keep_prob=0.8):
+        """
+        This is a Basic optimization loop exploration... single user
         
-        gradient_cluster = []
-        with tf.variable_scope(tf.get_variable_scope()):
-            self.build_default_values()
-        grads = average_gradients(tower_grads)
-    """
+        Params
+        ------
+        iters : 50 (default(is super low))
+            this should be set yuge and then the system will turn its self off
+            but the options.timeout switch far before it reaches this point.
+            
+        keep_prob : 0.8
+            This is used in the dropout layer and can be passed a lower number
+            for slower learning(better)?.
+            
+        Return
+        ------
+        nada
+            
+        Example
+        ------
+        >>> _, loss_value = build_network.Build_Adv_Network.basic_loop(iters=1e7)
+        
+        Todo
+        ----
+        * Do an advanced loop with the tf.Supervisor able to back out and use its
+          advanced functionality.
+        * Do a more advanced loop with the distrubuted network
+        """
+        # be civilized
+        start = time.time()
+        batch = []
+        with self.bossMan.managed_session() as sess:
+            # !! do init op!!
+            
+            index = 0
+            while not self.bossMan.stop() and index < iters:
+                batch = self.dataset.next_batch(self.options.batch_size,shuffle=True)
+                if len(batch[0]) is len(batch[1]):
+                     feed_dict = {self.Input_Tensor_Images: batch[0],
+                                  self.Input_Tensor_Labels: batch[1],
+                                  self.keep_prob: keep_prob}
+                     
+                     _, step, summary = sess.run([self.train_op_4,
+                                                  self.global_step,
+                                                  self.merged], feed_dict)
+    
+        # ask the bossman to call it a day
+        feed_dict = {self.Input_Tensor_Images: batch[0],
+                                  self.Input_Tensor_Labels: batch[1],
+                                  self.keep_prob: 1.0}
+        loss_value = self.loss.eval(sess,feed_dict)
+        self.bossMan.stop()
+        end = time.time()
+        time_dif = end - start   # do the math
+        time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))  
+        return loss_value, time_msg
+
+###################################################################
+    """These are all impelemented in the above build function"""
+###################################################################
     
     def build_default_values(self,worker):
         """
         This builds out the model from the options for a TF Graph
-        
+
         Param
         -----
         worker: "/gpu:0"
@@ -134,35 +137,48 @@ class Build_Adv_Network(object):
             if len(x) > 1:
                 we have a distributed network
             else:
-                we have a single computer 
+                we have a single computer
         """
         #with tf.device(tf.train.replica_device_setter(worker_device=worker, cluster=cluster)):
         with tf.device(worker):
-            """ Record Keeping """
-            global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-            
-            """ Do Basic Steps """
-            self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width, self.dataset.num_channels], name="Input_Tensor")
-            self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes], name="Input_Label")
-            self.Input_True_Labels   = tf.argmax(self.Input_Tensor_Labels, dimension=1)
-            self.x_image             = self.Input_Tensor_Images # current default layer
-            self.keep_prob           = tf.placeholder(tf.float32) # new feature goes with the dropout option
-    
-            """ Do Advanced Steps """
-            self.convlayerNames, self.Conv_layers, self.Conv_weights     = self.BUILD_CONV_LAYERS() ## BUILD LAYERS
-            self.x_image, self.features                                  = self.flatten_layer(self.x_image) ## SWITCH TO FC LAYERS
-            self.fclayerNames, self.fc_layers                            = self.BUILD_FC_LAYER(self.options.fc_layers) # build FC LAYERS
-            train_vars                                                   = tf.trainable_variables()
-            self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final Output")
-            tf.summary.histogram('activations', self.Output_True_Layer)
-    
+
+            """Start a Full Graph Scope"""
+            with tf.variable_scope('Full_Graph'):
+                """ Record Keeping """
+                self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+                with tf.name_scope("learn_rate"):
+                    self.learn_rate = tf.train.exponential_decay(0.1,self.global_step,
+                                                                 1e5,0.96,staircase=True)
+                tf.summary.scalar("learn_rate", self.learn_rate)
+
+                """ Do Basic Steps """
+                with tf.name_scope("input"):
+                    self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width, self.dataset.num_channels], name="Input_Tensor")
+                    self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes], name="Input_Label")
+                    self.Input_True_Labels   = tf.argmax(self.Input_Tensor_Labels, dimension=1)
+                    self.x_image             = self.Input_Tensor_Images # current default layer
+                    
+                with tf.name_scope("keep_prob"):
+                    self.keep_prob           = tf.placeholder(tf.float32) # new feature goes with the dropout option
+
+                """ Do Advanced Steps """
+                with tf.name_scope("adv_steps"):
+                    self.convlayerNames, self.Conv_layers, self.Conv_weights     = self.BUILD_CONV_LAYERS() ## BUILD LAYERS
+                    self.x_image, self.features                                  = self.flatten_layer(self.x_image) ## SWITCH TO FC LAYERS
+                    self.fclayerNames, self.fc_layers                            = self.BUILD_FC_LAYER(self.options.fc_layers) # build FC LAYERS
+                # this is used but i dont know what to call it.
+                train_vars                                                   = tf.trainable_variables()
+            with tf.name_scope("softmax"):
+                self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final Output")
+                tf.summary.histogram('activations', self.Output_True_Layer)
+
             """ Working Maths """
             with tf.name_scope("cross_entropy"):
                 self.cross_entropy  = tf.nn.softmax_cross_entropy_with_logits(logits=self.x_image, labels=self.Input_Tensor_Labels)
                 with tf.name_scope("total"):
                     self.cross_entropy_mean = tf.reduce_mean(self.cross_entropy)
             tf.summary.scalar("cross_entropy", self.cross_entropy_mean)
-    
+
             with tf.name_scope("train_loss"):
                 self.train_loss = tf.square(tf.sub(self.Input_Tensor_Labels, self.x_image))
                 self.cost       = tf.reduce_mean(self.train_loss)
@@ -170,7 +186,7 @@ class Build_Adv_Network(object):
                 training_vars       = tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * self.options.L2NormConst
                 self.loss           = self.cost + training_vars
             tf.summary.scalar("train_loss", self.loss)
-    
+
             with tf.name_scope("train_ops"):
                 self.optimizer      = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.loss)
                 self.optimizer2     = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.cross_entropy_mean)
@@ -178,7 +194,7 @@ class Build_Adv_Network(object):
                                         self.loss, global_step=self.global_step)
                 self.train_op_4 = tf.train.AdamOptimizer(self.options.learning_rate).minimize(
                                         self.loss, global_step=self.global_step)
-    
+
             """ Finishing Steps """
             with tf.name_scope("accuracy"):
                 with tf.name_scope('correct_prediction'):
@@ -187,15 +203,27 @@ class Build_Adv_Network(object):
                 with tf.name_scope('accuracy'):
                     self.accuracy           = tf.reduce_mean(tf.cast (self.correct_prediction, tf.float32))
             tf.summary.scalar('accuracy', self.accuracy)
-    
+
+            """This is some tricks to push our matplotlib graph inside tensorboard"""
+            with tf.variable_scope('TensorboardMatplotlibInput'):
+                # Matplotlib will give us the image as a string ...
+                img_strbuf_plh = tf.placeholder(tf.string, shape=[])
+                # ... encoded in the PNG format ...
+                my_img = tf.image.decode_png(img_strbuf_plh, 4)
+                # ... that we transform into an image summary
+                self.img_summary = tf.summary.image(
+                    'matplotlib_graph'
+                    , tf.expand_dims(my_img, 0)
+                )
+
             """ Initialize the session """
-            init_op = tf.global_variables_initializer()
-            
+            self.init_op = tf.global_variables_initializer()
+
             """create summary op"""
-            merged = tf.summary.merge_all()
-    
+            self.merged = tf.summary.merge_all()
+
             """ Create Saver object"""
-            saver = tf.train.Saver(
+            self.saver = tf.train.Saver(
                            var_list = {v.op.name: v for v in [train_vars,
                                                           self.conv_layers_wlist,
                                                           self.conv_layers_blist,
@@ -207,52 +235,32 @@ class Build_Adv_Network(object):
                            keep_checkpoint_every_n_hours=1.0,
                            pad_step_number = False,
                            )
-            
+
             """ Create Supervisor Object"""
             self.bossMan = tf.train.Supervisor(is_chief=True,
                                      logdir=self.options.logdir,
-                                     init_op = init_op,
-                                     summary_op = merged,
-                                     saver = saver,
-                                     global_step = global_step,
+                                     init_op = self.init_op,
+                                     summary_op = self.merged,
+                                     saver = self.saver,
+                                     global_step = self.global_step,
                                      save_model_secs = 600)
-        
+
+
 
         
-        #self.train_writer = tf.summary.FileWriter(summaries_dir + '/train',
-        #                               sess.graph)
-        #self.test_writer = tf.summary.FileWriter(summaries_dir + '/validation')
 
         #self.long_haul()
-        
-    def run_network(self, iters=5): pass
-        #"""This will optimize the function"""
-        
-        
-    """
-    def long_haul(self):
-        index = 0
-        #step_size = int(self.dataset._num_examples / self.options.batch_size)
-        for epoch in range(self.options.epochs):
-            for i in range(63):
-                batch = self.dataset.next_batch(self.options.batch_size)
-                if len(batch[0]) is len(batch[1]):
-                    self.optimize(batch,0.8)
 
-                    if i % 100 == 0:
-                      loss_value = self.get_lost(batch[0],batch[1])
-                      print("epoch: {0} step: {1} loss: {2:.3}".format(epoch, index, loss_value))
-                index += 1
+###################################################################
+    """These are all impelemented in the above build function"""
+###################################################################
+    def save_graph(self, session, path=None):
+        saver = self.saver
+        if path is None:
+            path = self.options.save_path + 'StupidAbritraryFileName'
+        saver.save(sess=session, save_path=path)
 
-    def optimize(self,batch, keep_prob):
-        self.session.run(self.optimizer, feed_dict={self.Input_Tensor_Images: batch[0], self.Input_Tensor_Labels: batch[1], self.keep_prob: keep_prob})
-        return True
-        #train_step.run(feed_dict={self.x: batch[0], self.Y: batch[1], self.keep_prob: 0.8}) #! Hardcoded value
 
-    def get_lost(self, x, y):
-        loss_value = self.loss.eval(session=self.session,feed_dict={self.Input_Tensor_Images: x, self.Input_Tensor_Labels: y, self.keep_prob: 1.0})
-        return loss_value #! hardcoded value
-    """
     def BUILD_CONV_LAYERS(self):
         layers = self.options.conv_layers
         self.conv_layers_nameslist = []
@@ -395,7 +403,38 @@ class Build_Adv_Network(object):
             layer = tf.nn.dropout(layer,self.keep_prob)
         return layer, weights, biases
 
+###################################################################
+    """These are New ideas maybe not impelmented yet..."""
+###################################################################
+    # Our UA function
+    def univAprox(self, x, hidden_dim=50):
+        # The simple case is f: R -> R
+        input_dim = 1
+        output_dim = 1
 
+        with tf.variable_scope('UniversalApproximator'):
+            ua_w = tf.get_variable(
+                name='ua_w',
+                shape=[input_dim, hidden_dim],
+                initializer=tf.random_normal_initializer(stddev=.1))
+            ua_b = tf.get_variable(
+                name='ua_b',
+                shape=[hidden_dim],
+                initializer=tf.constant_initializer(0.))
+            z = tf.matmul(x, ua_w) + ua_b
+            a = tf.nn.relu(z) # we now have our hidden_dim activations
+
+            ua_v = tf.get_variable(
+                name='ua_v',
+                shape=[hidden_dim, output_dim],
+                initializer=tf.random_normal_initializer(stddev=.1))
+            z = tf.matmul(a, ua_v)
+
+        return z
+
+###################################################################
+    """this is Deprication Island... kept for no good reason"""
+###################################################################
     """
     def feed_single(self, layer, image=None):
         if image is not None: img = image;
@@ -446,4 +485,29 @@ class Build_Adv_Network(object):
             i = j
         correct = (cls_true == cls_pred)
         return correct, cls_pred
+    """
+    """
+    TODO:
+    def build_out_distrubited_graph(self):
+        cluster = ""
+        worker = ""
+        server = ""
+
+        # Calculate the learning rate schedule.
+        num_batches_per_epoch = (cifar10.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN /
+                                 FLAGS.batch_size)
+
+        decay_steps = int(num_batches_per_epoch * cifar10.NUM_EPOCHS_PER_DECAY)
+
+        # Decay the learning rate exponentially based on the number of steps.
+        lr = tf.train.exponential_decay(cifar10.INITIAL_LEARNING_RATE,
+                                        global_step,
+                                        decay_steps,
+                                        cifar10.LEARNING_RATE_DECAY_FACTOR,
+                                        staircase=True)
+
+        gradient_cluster = []
+        with tf.variable_scope(tf.get_variable_scope()):
+            self.build_default_values()
+        grads = average_gradients(tower_grads)
     """
