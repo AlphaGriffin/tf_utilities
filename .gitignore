@@ -3,6 +3,13 @@
 /models
 /tkart
 /img
+.hgignore
+.hg/
+exportToHTML/
+
+# eric6 project
+*.e4p
+
 
 
 # Byte-compiled / optimized / DLL files
@@ -48,4 +55,4 @@ target/
 
 # Spyder project settings
 .spyderproject
-
+.spyproject/
