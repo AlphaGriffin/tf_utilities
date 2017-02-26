@@ -9,6 +9,12 @@ class mupenDataset(object):
     """ 
     This is a Tensorflow Input Data Class... most of this output are required
     field for using the Advanced ModelBuilder and Processor
+    
+    TODO:
+    -----
+    (1) redo this whole thing with more sensible human readable labels
+    (2) make a kickass human readable printout for .rst and console
+        
     """
     def __init__(self, imgs, labels, options=None):
         self.name                  = 'MUPEN64+'  

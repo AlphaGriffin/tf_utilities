@@ -3,13 +3,38 @@
 
 """  THIS HELPER WILL DEAL WITH THE MNIST DATASET   """
 
-import tensorflow.contrib.learn.python.learn.datasets.mnist as fthedang
+import tensorflow.contrib.learn.python.learn.datasets.mnist as tf_mnist
 import numpy as np # like a boss
 
 ROOT = '/home/eric/eric/practice/models/mnist/'
 
-class MNIST_DATASET(object):
+class MNIST_dataset(object):
+    """
+    TF_utilities MNIST dataset Tools
+
+    Parameters
+    ----------
+    options : tf_utilites options
+      How can you have any pudding if you dont eat any meat?
+
+    Returns
+    -------
+    This is returns no elements but is used to build ML models
+
+    Example
+    -------
+    >>> dataset = MNIST_DATASET(options)
+    """
     def __init__(self, options):
+        """
+        This is the only public function
+        
+        TODO:
+        -----
+        (1) redo this whole thing with more sensible human readable labels
+        (2) make a kickass human readable printout for .rst and console
+        
+        """
         self.name                  = 'MNIST'                            # Mixed National Institute of Standards and Technology database
         self.options               = options                            # MASTER: options should have everything
         self.path                  = self.options.model_path + 'mnist/' # hard coded link from master... $ hopefully this lives
@@ -25,7 +50,7 @@ class MNIST_DATASET(object):
         self.number_of_examples    = self.train_labels.shape[0]
        
     def load_dataset(self,):
-        return fthedang.read_data_sets(self.path, one_hot=True)
+        return tf_mnist.read_data_sets(self.path, one_hot=True)
        
     def build_return(self):
         self.data = self.load_dataset()                        # call TF lib for loading their data

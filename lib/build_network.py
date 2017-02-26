@@ -1,24 +1,41 @@
 #!/usr/bin/python
-#
 # Copyright (C) 2016 Alpha Griffin
-# fixme : add load and save functionality
-# fixme : add in automatic tensorboard output
-# fixme : output as much as possible to the options!
 # Copyright (C) 2017 Alpha Griffin
-
 """
-THIS HELPER WILL DEAL WITH THE NEW TENSORFLOW MODELS
+Objective
+---------
+    build a more dynamic and easily tweakable TF frontend for eventual GUI.
+    
+Progress
+--------
+    2-25-17: Adding more decoration to functions for long term readability
+    and use. Also making ready for the first complete run of TKart.
+    
+TODO
+----
+    * write a demo on how to go from start to finish. do a youtube video, 
+      build a docker. build a win exe. build wtf mac uses.
+    * do a lot of catch variables for setup use... be verbose.
+    * finish tensorboard dev output progess step.
+    * finish distrubted gpu progess step.
+    * finish UML output image.
+    
+Target for master push
+----------------------
+    * produce the tutorial results of the MNIST lesson and the TKart lesson
+      with this setup.
+    * produce a Tensorboard output with a guide for setup
 """
-
 import tensorflow as tf
 from PIL import Image
 import numpy as np
-## the MNIST-10 BREAKOUT is the EXPECTED !NECESSARY! datalinks... will be clearer when i can be
 
-## New adjustments will be made to accomedate the Tkart dataset!
-
+"""!!!DEV BUILD IN PROGRESS!!!"""
 
 class Build_Adv_Network(object):
+    """
+    Dynamically create a Tensorflow Network from the given Input Options.
+    """
     def __init__(self, dataset = None, init = True):
         self.dataset = dataset
         self.options = self.dataset.options

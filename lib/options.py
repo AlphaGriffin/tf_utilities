@@ -1,7 +1,10 @@
 #!/usr/bin/python
 # Copyright (C) 2017 Alpha Griffin
 
-
+"""
+DummyScript.com 2017
+This is the options setup for running TF with some sanity.
+"""
 class options(object):
     """
     TF_utilities Options
@@ -22,14 +25,22 @@ class options(object):
       fixed size of the conv_output
     fc_size : 128
       number of elements in the flattened layer ^ fc_layers
+    save_path : "/home/eric/.local/share/mupen64plus/model/mariokart64/"
+      output path of trained model for serving
+    logdir : "/tmp/train_logs"
+      output path of logs for tensorboard and tf.Supervisor
 
     Returns
     -------
-    This is returns no elements but is used to build
+    This is returns no elements but is used to build ML models
 
     Example
     -------
-    >>> config = options(verbose=False, learning_rate=.05, fc_layers=2)
+    >>> config = options(verbose=False, 
+             learning_rate=.05, 
+             fc_layers=2,
+             save_path="/home/eric/.local/share/mupen64plus/model/mariokart64/",
+             logdir="/tmp/train_logs")
 """
     def __init__(self,
                  verbose=True,
