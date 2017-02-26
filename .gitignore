@@ -1,9 +1,17 @@
 # Remove my datasets and models
 /dataset
 /models
+/exportToHTML
+.idea
 
+# HG Stuff
+.hg/
+.hgignore
 
-
+# eric6 project
+.eric6project/
+*.e4p
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -48,4 +56,4 @@ target/
 
 # Spyder project settings
 .spyderproject
-
+.spyproject/
