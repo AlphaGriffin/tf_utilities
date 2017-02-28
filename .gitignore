@@ -4,6 +4,7 @@
 /exportToHTML
 .idea
 /hiddenStuff
+/train_logs
 
 # HG Stuff
 .hg/

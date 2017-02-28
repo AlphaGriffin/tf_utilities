@@ -44,6 +44,105 @@ class procNet(object):
             self.hosts = self.options.hosts
         return sess
     
+    def run_network(self, iters=50, keep_prob=0.8):
+        """
+        This is a Basic optimization loop exploration... single user
+
+        Params
+        ------
+        iters : 50 (default(is super low))
+            this should be set yuge and then the system will turn its self off
+            but the options.timeout switch far before it reaches this point.
+
+        keep_prob : 0.8
+            This is used in the dropout layer and can be passed a lower number
+            for slower learning(better)?.
+
+        Return
+        ------
+        nada
+
+        Example
+        ------
+        >>> _, loss_value = build_network.Build_Adv_Network.basic_loop(iters=1e7)
+
+        Todo
+        ----
+        * Do an advanced loop with the tf.Supervisor able to back out and use its
+          advanced functionality.
+        * Do a more advanced loop with the distrubuted network
+        
+        Notes:
+        ------
+        * adding a set of images from 1 per batch to the tensorboard.
+        logdir="{}".format(self.options.logDir)
+        """
+        # be civilized
+        start = time.time()
+        batch = []
+        #final_img_set = []
+        self.bossMan = self.network.bossMan
+        self.bossMan.managed_session()
+        with self.bossMan.managed_session() as sess:
+            # !! do init op!!
+            sess.run(self.network.init_op)
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" +
+                  "We now have a running Session and this is working...")
+            #index = 0
+            #while not self.bossMan.stop() and index < iters:
+            for i in tqdm(range(iters)):
+                while not self.bossMan.stop():
+                    #index += 1
+                    batch = self.dataset.next_batch(self.options.batch_size,shuffle=False)
+                    #test_img = batch[0][1]
+                    #final_img_set.append(test_img)
+                    if len(batch[0]) is len(batch[1]):
+                         #print("WOW COOL! look how far ive made it! {}".format(index))
+                         feed_dict = {self.network.Input_Tensor_Images: batch[0],
+                                      self.network.Input_Tensor_Labels: batch[1],
+                                      self.network.keep_prob: keep_prob}
+                                      #self.matplotlib_img: batch[0]}
+                         
+                         # do the plot here????????????
+                         """
+                         y_true_res, y_res = sess.run([self.Input_True_Labels,
+                                                       self.Input_Tensor_Labels], 
+                                                      feed_dict={self.Input_Tensor_Images: batch[0],
+                                                                 self.Input_Tensor_Labels: batch[1]})
+                         
+                         # then build out the actual plot for tensorboard
+                         plt.figure(1)
+                         plt.subplot(211)
+                         plt.plot(batch[0], y_true_res.flatten())
+                         plt.subplot(212)
+                         ####!!!!
+                         print("WOW COOL! look how far ive made it! {}".format(index))
+                         plt.plot(batch[0], y_res)
+                         # only save the pictures one time... hopefully...
+                         if batch[2] < 1:
+                             for i in batch[0]:
+                                 plt.savefig(test_img, format='png')
+                         #imgdata.seek(0)
+                         """
+                         _, step, summary = sess.run([self.network.train_op_4,
+                                                        self.network.global_step,
+                                                        self.network.merged], feed_dict)
+                     #plt.plot(test_img, plot_img_summary)
+    
+            
+            #feed_dict = {self.Input_Tensor_Images: batch[0],
+            #                          self.Input_Tensor_Labels: batch[1],
+            #                          self.keep_prob: 1.0}
+            # put this is tensorboard too...
+            #loss_value = self.loss.eval(sess,feed_dict)
+            #print("Final Loss Value: {}".format(loss_value))
+        # ask the bossman to call it a day
+        self.bossMan.stop()
+        end = time.time()
+        time_dif = end - start   # do the math
+        time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))
+        return time_msg
+    
 
 
 class Process_Network(object):

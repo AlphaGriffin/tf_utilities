@@ -46,13 +46,15 @@ class options(object):
                  verbose=True,
                  learning_rate=1e-7,
                  batch_size=100,
-                 save_path=None,
                  conv_layers=5,
                  fc_layers=5,
                  fc_size=128,
+                 save_path=None,
                  logdir=None):
         
         self.verbose = verbose
+        
+        # learning rate has been DEPRICATED
         self.learning_rate = learning_rate
         self.batch_size = batch_size
 
@@ -66,10 +68,10 @@ class options(object):
         """Use Hard Coded Personal Pathing"""
         # Save Model Path
         if save_path is None:
-            save_path = "/home/eric/.local/share/mupen64plus/model/mariokart64/"
+            save_path = "/home/eric/git/tf_utilities/models/"
         self.save_path = save_path
         
         # LogDir for Supervisor Object
         if logdir is None:
-            self.logdir = "/tmp/train_logs"
-        self.logdir = logdir
+            self.logdir = "/home/eric/git/tf_utilities/train_logs/"
+        self.logDir = logdir

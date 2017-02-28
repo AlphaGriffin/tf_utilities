@@ -30,8 +30,13 @@ Target for master push
 
 import tensorflow as tf
 from datetime import timedelta
-#import numpy as np
+import numpy as np
 import time
+import io
+# for tensorboard output
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 """!!!DEV BUILD IN PROGRESS!!!"""
 
@@ -51,80 +56,115 @@ class Build_Adv_Network(object):
         self.step_size = int(self.dataset._num_examples / self.options.batch_size)
 
         ## HERE WE GO!!
-        #if init: self.init_new_graph();
+        if init: self.init_new_graph();
 
     def init_new_graph(self):
-        self.session = tf.InteractiveSession()
         self.build_default_values('/gpu:0')
-        #self.saver = tf.train.Saver()
+        print("New Network is prepared for processing!");
 
-        if self.options.verbose: print("New Network is prepared for processing!");
-    
 ###################################################################
     """These are all impelemented in the above build function"""
 ###################################################################
-    
+
     def run_network(self, iters=50, keep_prob=0.8):
         """
         This is a Basic optimization loop exploration... single user
-        
+
         Params
         ------
         iters : 50 (default(is super low))
             this should be set yuge and then the system will turn its self off
             but the options.timeout switch far before it reaches this point.
-            
+
         keep_prob : 0.8
             This is used in the dropout layer and can be passed a lower number
             for slower learning(better)?.
-            
+
         Return
         ------
         nada
-            
+
         Example
         ------
         >>> _, loss_value = build_network.Build_Adv_Network.basic_loop(iters=1e7)
-        
+
         Todo
         ----
         * Do an advanced loop with the tf.Supervisor able to back out and use its
           advanced functionality.
         * Do a more advanced loop with the distrubuted network
+        
+        Notes:
+        ------
+        * adding a set of images from 1 per batch to the tensorboard.
+        
         """
         # be civilized
         start = time.time()
         batch = []
+        #final_img_set = []
+        self.bossMan.managed_session()
         with self.bossMan.managed_session() as sess:
             # !! do init op!!
-            
+            sess.run(self.init_op)
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" +
+                  "We now have a running Session and this is working...")
             index = 0
             while not self.bossMan.stop() and index < iters:
+                index += 1
                 batch = self.dataset.next_batch(self.options.batch_size,shuffle=True)
+                #test_img = batch[0][1]
+                #final_img_set.append(test_img)
                 if len(batch[0]) is len(batch[1]):
                      feed_dict = {self.Input_Tensor_Images: batch[0],
                                   self.Input_Tensor_Labels: batch[1],
-                                  self.keep_prob: keep_prob}
+                                  self.keep_prob: keep_prob,
+                                  self.matplotlib_img: batch[0]}
                      
-                     _, step, summary = sess.run([self.train_op_4,
-                                                  self.global_step,
-                                                  self.merged], feed_dict)
+                     # do the plot here????????????
+                     y_true_res, y_res = sess.run([self.Input_True_Labels,
+                                                   self.Input_Tensor_Labels], 
+                                                  feed_dict={self.Input_Tensor_Images: batch[0],
+                                                             self.Input_Tensor_Labels: batch[1]})
+                     """
+                     # then build out the actual plot for tensorboard
+                     plt.figure(1)
+                     plt.subplot(211)
+                     plt.plot(batch[0], y_true_res.flatten())
+                     plt.subplot(212)
+                     ####!!!!
+                     print("WOW COOL! look how far ive made it! {}".format(index))
+                     plt.plot(batch[0], y_res)
+                     # only save the pictures one time... hopefully...
+                     if batch[2] < 1:
+                         for i in batch[0]:
+                             plt.savefig(test_img, format='png')
+                     #imgdata.seek(0)
+                     """
+                     _, step, summary, plot_img_summary = sess.run([self.train_op_4,
+                                                                    self.global_step,
+                                                                    self.merged,
+                                                                    self.matplotlib_img], feed_dict)
+                     #plt.plot(test_img, plot_img_summary)
     
-        # ask the bossman to call it a day
-        feed_dict = {self.Input_Tensor_Images: batch[0],
-                                  self.Input_Tensor_Labels: batch[1],
-                                  self.keep_prob: 1.0}
-        loss_value = self.loss.eval(sess,feed_dict)
+
+            # ask the bossman to call it a day
+            feed_dict = {self.Input_Tensor_Images: batch[0],
+                                      self.Input_Tensor_Labels: batch[1],
+                                      self.keep_prob: 1.0}
+            # put this is tensorboard too...
+            loss_value = self.loss.eval(sess,feed_dict)
+            print("Final Loss Value: {}".format(loss_value))
         self.bossMan.stop()
         end = time.time()
         time_dif = end - start   # do the math
-        time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))  
+        time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))
         return loss_value, time_msg
 
 ###################################################################
     """These are all impelemented in the above build function"""
 ###################################################################
-    
+
     def build_default_values(self,worker):
         """
         This builds out the model from the options for a TF Graph
@@ -140,126 +180,155 @@ class Build_Adv_Network(object):
                 we have a single computer
         """
         #with tf.device(tf.train.replica_device_setter(worker_device=worker, cluster=cluster)):
-        with tf.device(worker):
+        #with tf.device(worker):
 
-            """Start a Full Graph Scope"""
-            with tf.variable_scope('Full_Graph'):
-                """ Record Keeping """
-                self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-                with tf.name_scope("learn_rate"):
-                    self.learn_rate = tf.train.exponential_decay(0.1,self.global_step,
-                                                                 1e5,0.96,staircase=True)
-                tf.summary.scalar("learn_rate", self.learn_rate)
+        """Start a Full Graph Scope"""
+        with tf.variable_scope('Full_Graph'):
+            """ Record Keeping """
+            self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+            with tf.name_scope("learn_rate"):
+                self.learn_rate = tf.train.exponential_decay(
+                                             0.1,self.global_step,
+                                             1e5,0.96,staircase=True,
+                                             name="Learn_decay")
+            tf.summary.scalar("learn_rate", self.learn_rate)
 
-                """ Do Basic Steps """
-                with tf.name_scope("input"):
-                    self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width, self.dataset.num_channels], name="Input_Tensor")
-                    self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes], name="Input_Label")
-                    self.Input_True_Labels   = tf.argmax(self.Input_Tensor_Labels, dimension=1)
-                    self.x_image             = self.Input_Tensor_Images # current default layer
-                    
-                with tf.name_scope("keep_prob"):
-                    self.keep_prob           = tf.placeholder(tf.float32) # new feature goes with the dropout option
+            """ Do Basic Steps """
+            with tf.name_scope("input"):
+                self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width, self.dataset.num_channels], name="Input_Tensor")
+                self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes], name="Input_Label")
+                self.Input_True_Labels   = tf.argmax(self.Input_Tensor_Labels, dimension=1)
+                self.x_image             = self.Input_Tensor_Images # current default layer
 
-                """ Do Advanced Steps """
-                with tf.name_scope("adv_steps"):
-                    self.convlayerNames, self.Conv_layers, self.Conv_weights     = self.BUILD_CONV_LAYERS() ## BUILD LAYERS
-                    self.x_image, self.features                                  = self.flatten_layer(self.x_image) ## SWITCH TO FC LAYERS
-                    self.fclayerNames, self.fc_layers                            = self.BUILD_FC_LAYER(self.options.fc_layers) # build FC LAYERS
-                # this is used but i dont know what to call it.
-                train_vars                                                   = tf.trainable_variables()
-            with tf.name_scope("softmax"):
-                self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final Output")
-                tf.summary.histogram('activations', self.Output_True_Layer)
+            with tf.name_scope("keep_prob"):
+                self.keep_prob           = tf.placeholder(tf.float32) # new feature goes with the dropout option
+                
+            """ Do Advanced Steps """
+            with tf.name_scope("adv_steps"):
+                self.convlayerNames, self.Conv_layers, self.Conv_weights     = self.BUILD_CONV_LAYERS() ## BUILD LAYERS
+                self.x_image, self.features                                  = self.flatten_layer(self.x_image) ## SWITCH TO FC LAYERS
+                self.fclayerNames, self.fc_layers                            = self.BUILD_FC_LAYER(self.options.fc_layers) # build FC LAYERS
+            # this is used but i dont know what to call it.
+            
+        with tf.name_scope("softmax"):
+            self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final_Output")
+            tf.summary.histogram('activations', self.Output_True_Layer)
 
-            """ Working Maths """
-            with tf.name_scope("cross_entropy"):
-                self.cross_entropy  = tf.nn.softmax_cross_entropy_with_logits(logits=self.x_image, labels=self.Input_Tensor_Labels)
-                with tf.name_scope("total"):
-                    self.cross_entropy_mean = tf.reduce_mean(self.cross_entropy)
-            tf.summary.scalar("cross_entropy", self.cross_entropy_mean)
+        """ Working Maths """
+        with tf.name_scope("cross_entropy"):
+            self.cross_entropy  = tf.nn.softmax_cross_entropy_with_logits(logits=self.x_image, labels=self.Input_Tensor_Labels)
+            with tf.name_scope("total"):
+                self.cross_entropy_mean = tf.reduce_mean(self.cross_entropy)
+        tf.summary.scalar("cross_entropy", self.cross_entropy_mean)
 
-            with tf.name_scope("train_loss"):
-                self.train_loss = tf.square(tf.sub(self.Input_Tensor_Labels, self.x_image))
-                self.cost       = tf.reduce_mean(self.train_loss)
-                tf.summary.scalar("train_cost", self.cost)
-                training_vars       = tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * self.options.L2NormConst
-                self.loss           = self.cost + training_vars
-            tf.summary.scalar("train_loss", self.loss)
+        with tf.name_scope("train_loss"):
+            self.train_loss = tf.square(tf.subtract(self.Input_Tensor_Labels, self.x_image))
+            self.cost       = tf.reduce_mean(self.train_loss)
+            tf.summary.scalar("train_cost", self.cost)
+            training_vars       = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()]) * self.learn_rate
+            self.loss           = self.cost + training_vars
+        tf.summary.scalar("train_loss", self.loss)
 
-            with tf.name_scope("train_ops"):
-                self.optimizer      = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.loss)
-                self.optimizer2     = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.cross_entropy_mean)
-                self.train_op_3 = tf.train.AdagradOptimizer(self.options.learning_rate).minimize(
-                                        self.loss, global_step=self.global_step)
-                self.train_op_4 = tf.train.AdamOptimizer(self.options.learning_rate).minimize(
-                                        self.loss, global_step=self.global_step)
+        with tf.name_scope("train_ops"):
+            self.optimizer      = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.loss)
+            self.optimizer2     = tf.train.AdamOptimizer(learning_rate=self.options.learning_rate).minimize(self.cross_entropy_mean)
+            self.train_op_3 = tf.train.AdagradOptimizer(self.options.learning_rate).minimize(
+                                    self.loss, global_step=self.global_step)
+            self.train_op_4 = tf.train.AdamOptimizer(self.learn_rate).minimize(
+                                    self.loss, global_step=self.global_step)
 
-            """ Finishing Steps """
-            with tf.name_scope("accuracy"):
-                with tf.name_scope('correct_prediction'):
-                    self.Output_True_Labels = tf.argmax(self.Output_True_Layer, dimension=1)
-                    self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
-                with tf.name_scope('accuracy'):
-                    self.accuracy           = tf.reduce_mean(tf.cast (self.correct_prediction, tf.float32))
-            tf.summary.scalar('accuracy', self.accuracy)
+        """ Finishing Steps """
+        with tf.name_scope("accuracy"):
+            with tf.name_scope('correct_prediction'):
+                self.Output_True_Labels = tf.argmax(self.Output_True_Layer, dimension=1)
+                self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
+            with tf.name_scope('accuracy'):
+                self.accuracy           = tf.reduce_mean(tf.cast (self.correct_prediction, tf.float32))
+        tf.summary.scalar('accuracy', self.accuracy)
 
-            """This is some tricks to push our matplotlib graph inside tensorboard"""
-            with tf.variable_scope('TensorboardMatplotlibInput'):
-                # Matplotlib will give us the image as a string ...
-                img_strbuf_plh = tf.placeholder(tf.string, shape=[])
-                # ... encoded in the PNG format ...
-                my_img = tf.image.decode_png(img_strbuf_plh, 4)
-                # ... that we transform into an image summary
-                self.img_summary = tf.summary.image(
-                    'matplotlib_graph'
-                    , tf.expand_dims(my_img, 0)
-                )
+        """This is some tricks to push our matplotlib graph inside tensorboard"""
+        with tf.variable_scope('Matplotlib_Input'):
+            # Matplotlib will give us the image as a string ...
+            self.matplotlib_img = tf.placeholder(dtype=tf.string.real_dtype, shape=[])
+            # ... encoded in the PNG format ...
+            my_img = tf.image.decode_png(self.matplotlib_img, 4)
+            # ... that we transform into an image summary
+            self.img_summary = tf.summary.image(
+                'matplotlib_graph'
+                , tf.expand_dims(my_img, 0)
+            )
 
-            """ Initialize the session """
-            self.init_op = tf.global_variables_initializer()
+        """ Initialize the session """
+        self.init_op = tf.global_variables_initializer()
 
-            """create summary op"""
-            self.merged = tf.summary.merge_all()
+        """create summary op"""
+        self.merged = tf.summary.merge_all()
 
-            """ Create Saver object"""
-            self.saver = tf.train.Saver(
-                           var_list = {v.op.name: v for v in [train_vars,
-                                                          self.conv_layers_wlist,
-                                                          self.conv_layers_blist,
-                                                          self.fc_layers_wlist,
-                                                          self.fc_layers_blist,
-                                                              ]},
-                           write_version=tf.train.SaverDef.V2,
-                           sharded=True,
-                           keep_checkpoint_every_n_hours=1.0,
-                           pad_step_number = False,
-                           )
+        """ Create Saver object"""
+        self.saver = tf.train.Saver(
+                   var_list = {"{}".format(v) : v for v in [tf.model_variables(),
+                   #var_list = {"{}".format(v) : v for v in [tf.trainable_variables(),
+                                                  #self.conv_layers_wlist,
+                                                  #self.conv_layers_blist,
+                                                  #self.fc_layers_wlist,
+                                                  #self.fc_layers_blist,
+                                                      ]},
+                   write_version=tf.train.SaverDef.V2,
+                   sharded=True,
+                   keep_checkpoint_every_n_hours=1.0
+                   )
 
-            """ Create Supervisor Object"""
-            self.bossMan = tf.train.Supervisor(is_chief=True,
-                                     logdir=self.options.logdir,
-                                     init_op = self.init_op,
-                                     summary_op = self.merged,
-                                     saver = self.saver,
-                                     global_step = self.global_step,
-                                     save_model_secs = 600)
+        """ Create Supervisor Object"""
+        self.bossMan = tf.train.Supervisor(is_chief=True,
+                                 logdir=self.options.logdir,
+                                 init_op = self.init_op,
+                                 summary_op = self.merged,
+                                 saver = self.saver,
+                                 global_step = self.global_step,
+                                 save_model_secs = 600)
 
 
 
-        
+
 
         #self.long_haul()
 
 ###################################################################
     """These are all impelemented in the above build function"""
 ###################################################################
+    """
+    def build_plotter(self, sess, input_images,):
+        #setup matplotlib output for tensorboard
+        inputs = np.array([ [(i - 1000) / 100] for i in input_images ])
+        y_true_res, y_res = sess.run([y_true, y], feed_dict={ x: inputs
+        })
+        # We plot it using matplotlib
+        # (This is some matplotlib wizardry to get an image as a string,
+        # read the matplotlib documentation for more information)
+        plt.figure(1)
+        plt.subplot(211)
+        plt.plot(inputs, y_true_res.flatten())
+        plt.subplot(212)
+        plt.plot(inputs, y_res)
+        imgdata = io.BytesIO()
+        plt.savefig(imgdata, format='png')
+        imgdata.seek(0)
+        # We push our graph into TensorBoard
+        plot_img_summary = sess.run(img_summary, feed_dict={
+            img_strbuf_plh: imgdata.getvalue()
+        })
+        sw.add_summary(plot_img_summary, i + 1)
+        plt.clf()
+
+
+    #depricated for use in tf.Supervisor
     def save_graph(self, session, path=None):
+        #Manually save the graph
         saver = self.saver
         if path is None:
             path = self.options.save_path + 'StupidAbritraryFileName'
         saver.save(sess=session, save_path=path)
-
+    """
 
     def BUILD_CONV_LAYERS(self):
         layers = self.options.conv_layers
@@ -291,9 +360,9 @@ class Build_Adv_Network(object):
             layer_name = "convLayer_%s" % layer
             with tf.name_scope(layer_name):
                 with tf.name_scope("weights"):
-                    self.summaries(w)
+                    tf.summary.histogram("weights", w)
                 with tf.name_scope("biases"):
-                    self.summaries(b)
+                    tf.summary.histogram('biases', b)
                 with tf.name_scope("logits"):
                     tf.summary.histogram('pre_activations', reducing_shape)
             self.conv_layers_nameslist.append(layer_name)
@@ -343,9 +412,9 @@ class Build_Adv_Network(object):
             layer_name = "fullyLayer_%s" % layer
             with tf.name_scope(layer_name):
                 with tf.name_scope("weights"):
-                    self.summaries(w)
+                    tf.summary.histogram("weights",w)
                 with tf.name_scope("biases"):
-                    self.summaries(b)
+                    tf.summary.histogram('biases', b)
                 with tf.name_scope("logits"):
                     tf.summary.histogram('pre_activations', self.x_image)
             self.fc_layers_nameslist.append(layer_name)
