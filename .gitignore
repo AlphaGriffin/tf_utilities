@@ -5,6 +5,7 @@
 .idea
 /hiddenStuff
 /train_logs
+/train_logs_2
 
 # HG Stuff
 .hg/

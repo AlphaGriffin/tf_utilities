@@ -30,13 +30,14 @@ Target for master push
 
 import tensorflow as tf
 from datetime import timedelta
-import numpy as np
+#import numpy as np
 import time
-import io
+import tqdm
+#import io
 # for tensorboard output
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+#import matplotlib
+#matplotlib.use('Agg')
+#import matplotlib.pyplot as plt
 
 """!!!DEV BUILD IN PROGRESS!!!"""
 
@@ -67,99 +68,30 @@ class Build_Adv_Network(object):
 ###################################################################
 
     def run_network(self, iters=50, keep_prob=0.8):
-        """
-        This is a Basic optimization loop exploration... single user
-
-        Params
-        ------
-        iters : 50 (default(is super low))
-            this should be set yuge and then the system will turn its self off
-            but the options.timeout switch far before it reaches this point.
-
-        keep_prob : 0.8
-            This is used in the dropout layer and can be passed a lower number
-            for slower learning(better)?.
-
-        Return
-        ------
-        nada
-
-        Example
-        ------
-        >>> _, loss_value = build_network.Build_Adv_Network.basic_loop(iters=1e7)
-
-        Todo
-        ----
-        * Do an advanced loop with the tf.Supervisor able to back out and use its
-          advanced functionality.
-        * Do a more advanced loop with the distrubuted network
         
-        Notes:
-        ------
-        * adding a set of images from 1 per batch to the tensorboard.
-        
-        """
         # be civilized
         start = time.time()
-        batch = []
-        #final_img_set = []
-        self.bossMan.managed_session()
         with self.bossMan.managed_session() as sess:
-            # !! do init op!!
-            sess.run(self.init_op)
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" +
-                  "We now have a running Session and this is working...")
-            index = 0
-            while not self.bossMan.stop() and index < iters:
-                index += 1
-                batch = self.dataset.next_batch(self.options.batch_size,shuffle=True)
-                #test_img = batch[0][1]
-                #final_img_set.append(test_img)
-                if len(batch[0]) is len(batch[1]):
-                     feed_dict = {self.Input_Tensor_Images: batch[0],
-                                  self.Input_Tensor_Labels: batch[1],
-                                  self.keep_prob: keep_prob,
-                                  self.matplotlib_img: batch[0]}
-                     
-                     # do the plot here????????????
-                     y_true_res, y_res = sess.run([self.Input_True_Labels,
-                                                   self.Input_Tensor_Labels], 
-                                                  feed_dict={self.Input_Tensor_Images: batch[0],
-                                                             self.Input_Tensor_Labels: batch[1]})
-                     """
-                     # then build out the actual plot for tensorboard
-                     plt.figure(1)
-                     plt.subplot(211)
-                     plt.plot(batch[0], y_true_res.flatten())
-                     plt.subplot(212)
-                     ####!!!!
-                     print("WOW COOL! look how far ive made it! {}".format(index))
-                     plt.plot(batch[0], y_res)
-                     # only save the pictures one time... hopefully...
-                     if batch[2] < 1:
-                         for i in batch[0]:
-                             plt.savefig(test_img, format='png')
-                     #imgdata.seek(0)
-                     """
-                     _, step, summary, plot_img_summary = sess.run([self.train_op_4,
-                                                                    self.global_step,
-                                                                    self.merged,
-                                                                    self.matplotlib_img], feed_dict)
-                     #plt.plot(test_img, plot_img_summary)
-    
-
-            # ask the bossman to call it a day
-            feed_dict = {self.Input_Tensor_Images: batch[0],
+            
+            # DONT RUN  THE FUCKING INITO OPP DUMBASS !
+            #sess.run(self.init_op)
+            print("Working...")
+            for i in tqdm(range(iters)):
+                while not self.bossMan.stop():
+                    batch = self.dataset.next_batch(self.options.batch_size,shuffle=True)
+                    if len(batch[0]) is len(batch[1]):
+                         feed_dict = {self.Input_Tensor_Images: batch[0],
                                       self.Input_Tensor_Labels: batch[1],
-                                      self.keep_prob: 1.0}
-            # put this is tensorboard too...
-            loss_value = self.loss.eval(sess,feed_dict)
-            print("Final Loss Value: {}".format(loss_value))
+                                      self.keep_prob: keep_prob}
+                         
+                         _, step, summary = sess.run([self.train_op_4,
+                                                      self.global_step,
+                                                      self.merged], feed_dict)
         self.bossMan.stop()
         end = time.time()
         time_dif = end - start   # do the math
         time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))
-        return loss_value, time_msg
+        return time_msg
 
 ###################################################################
     """These are all impelemented in the above build function"""
@@ -247,16 +179,16 @@ class Build_Adv_Network(object):
         tf.summary.scalar('accuracy', self.accuracy)
 
         """This is some tricks to push our matplotlib graph inside tensorboard"""
-        with tf.variable_scope('Matplotlib_Input'):
+        #with tf.variable_scope('Matplotlib_Input'):
             # Matplotlib will give us the image as a string ...
-            self.matplotlib_img = tf.placeholder(dtype=tf.string.real_dtype, shape=[])
+        #    self.matplotlib_img = tf.placeholder(dtype=tf.string.real_dtype, shape=[])
             # ... encoded in the PNG format ...
-            my_img = tf.image.decode_png(self.matplotlib_img, 4)
+        #    my_img = tf.image.decode_png(self.matplotlib_img, 4)
             # ... that we transform into an image summary
-            self.img_summary = tf.summary.image(
-                'matplotlib_graph'
-                , tf.expand_dims(my_img, 0)
-            )
+        #    self.img_summary = tf.summary.image(
+        #        'matplotlib_graph'
+        #        , tf.expand_dims(my_img, 0)
+        #    )
 
         """ Initialize the session """
         self.init_op = tf.global_variables_initializer()
@@ -285,7 +217,7 @@ class Build_Adv_Network(object):
                                  summary_op = self.merged,
                                  saver = self.saver,
                                  global_step = self.global_step,
-                                 save_model_secs = 600)
+                                 save_model_secs = 60)
 
 
 

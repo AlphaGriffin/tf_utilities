@@ -63,7 +63,6 @@ class options(object):
         self.fc_layers = 5        # of fully connected layers 2 stock
         self.f_size = 5           # fixed size not file size... silly 5 stock
         self.fc_size = 128        # Max # of elements in FC flatened layers
-        self.L2NormConst = learning_rate
         
         """Use Hard Coded Personal Pathing"""
         # Save Model Path
