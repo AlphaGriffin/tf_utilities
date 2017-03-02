@@ -74,3 +74,8 @@ class options(object):
         if logdir is None:
             self.logdir = "/home/eric/git/tf_utilities/train_logs/"
         self.logDir = logdir
+        
+        # Mupen64plus stuff
+        #self.save_path = "/home/eric/.local/share/mupen64plus/model/mariokart64/"
+        # server port for webAPI model short range
+        #self.port = 8321
