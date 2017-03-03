@@ -33,4 +33,4 @@
 #                   [--reload_interval RELOAD_INTERVAL]
 #"""
 
-tensorboard --logdir ./train_logs --port 6666 --reload_interval 25
+tensorboard --logdir ./train_logs --reload_interval 25

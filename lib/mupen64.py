@@ -84,7 +84,45 @@ class mupenDataset(object):
         test_labels = labels[idx_valid, :]
 
         return train_images, train_labels, test_images, test_labels
-    
+
+    def next_batch2(self, batch_size, shuffle=False, test=False):
+        """
+        Shuffle is off by default
+        Test is off by default... switches which set to take batch from
+        """
+        # which set are we using??
+        images = self.train_images
+        labels = self.train_labels
+        if test:
+            images = self.test_images
+            labels = self.test_labels
+
+        # get our start postition
+        start = self._index_in_epoch
+        self._index_in_epoch += batch_size
+
+        if self._index_in_epoch > self._num_examples:
+            # Finished epoch
+            self._epochs_completed += 1
+
+            # Shuffle the data
+            if shuffle:
+                perm = np.arange(self._num_examples) # should add some sort of seeding for verification
+                np.random.shuffle(perm)
+                images = images[perm]
+                labels = labels[perm]
+
+            # Start next epoch
+            start = 0
+            self._index_in_epoch = batch_size
+            assert batch_size <= self._num_examples
+        end = self._index_in_epoch
+
+        # batch check
+        # if len(images) is not len(labels):
+        #    return False
+        return images[start:end], labels[start:end], self._epochs_completed
+
     def next_batch(self, batch_size,shuffle=False):
         """ Shuffle is off by default """
         start = self._index_in_epoch

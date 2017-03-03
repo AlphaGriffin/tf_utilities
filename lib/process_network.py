@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
 matplotlib.use('Agg')
 
 """
@@ -23,27 +24,12 @@ TODO:
 
 class procNet(object):
     """This is a better way... V.2"""
+
     def __init__(self, network):
         self.network = network
         self.dataset = network.dataset
         self.options = network.options
 
-    def newSession(self, sessType=None):
-        """creates different tf session"""
-        if sessType is None:
-            sess = tf.Session()
-        elif sessType is "Interactive":
-            sess = tf.InteractiveSession()
-        elif sessType is "Supervisor":
-            supervisor = tf.Supervisor(is_chief=True,
-                                       logdir="{}".format(self.options.logDir),
-                                       )
-            sess = supervisor.managed_session()
-        elif sessType is "Distributed":
-            # hosts and works list need to be in the options
-            self.hosts = self.options.hosts
-        return sess
-    
     def run_network(self, iters=50, keep_prob=0.8):
         """
         This is a Basic optimization loop exploration... single user
@@ -79,92 +65,29 @@ class procNet(object):
         """
         # be civilized
         start = time.time()
-        batch = []
-        #final_img_set = []
-        self.bossMan = self.network.bossMan
-        self.bossMan.managed_session()
-        with self.bossMan.managed_session() as sess:
-            # !! do init op!!
-            sess.run(self.network.init_op)
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" +
-                  "We now have a running Session and this is working...")
-            #index = 0
-            #while not self.bossMan.stop() and index < iters:
+        with self.network.bossMan.managed_session() as sess:
+            #sumwriter = tf.summary.FileWriter(logdir=self.options.logDir, graph=tf.get_default_graph())
+            # tf.train.write_graph(tf.get_default_graph(), self.options.logDir, 'graph.pbtxt')
             for i in tqdm(range(iters)):
-                while not self.bossMan.stop():
-                    #index += 1
-                    batch = self.dataset.next_batch(self.options.batch_size,shuffle=False)
-                    #test_img = batch[0][1]
-                    #final_img_set.append(test_img)
+                while not self.network.bossMan.stop():
+                    batch = self.dataset.next_batch(self.options.batch_size)
                     if len(batch[0]) is len(batch[1]):
-                         #print("WOW COOL! look how far ive made it! {}".format(index))
-                         feed_dict = {self.network.Input_Tensor_Images: batch[0],
-                                      self.network.Input_Tensor_Labels: batch[1],
-                                      self.network.keep_prob: keep_prob}
-                                      #self.matplotlib_img: batch[0]}
-                         
-                         # do the plot here????????????
-                         """
-                         y_true_res, y_res = sess.run([self.Input_True_Labels,
-                                                       self.Input_Tensor_Labels], 
-                                                      feed_dict={self.Input_Tensor_Images: batch[0],
-                                                                 self.Input_Tensor_Labels: batch[1]})
-                         
-                         # then build out the actual plot for tensorboard
-                         plt.figure(1)
-                         plt.subplot(211)
-                         plt.plot(batch[0], y_true_res.flatten())
-                         plt.subplot(212)
-                         ####!!!!
-                         print("WOW COOL! look how far ive made it! {}".format(index))
-                         plt.plot(batch[0], y_res)
-                         # only save the pictures one time... hopefully...
-                         if batch[2] < 1:
-                             for i in batch[0]:
-                                 plt.savefig(test_img, format='png')
-                         #imgdata.seek(0)
-                         """
-                         _, step, summary = sess.run([self.network.train_op_4,
-                                                        self.network.global_step,
-                                                        self.network.merged], feed_dict)
-                     #plt.plot(test_img, plot_img_summary)
-    
-            
-            #feed_dict = {self.Input_Tensor_Images: batch[0],
-            #                          self.Input_Tensor_Labels: batch[1],
-            #                          self.keep_prob: 1.0}
-            # put this is tensorboard too...
-            #loss_value = self.loss.eval(sess,feed_dict)
-            #print("Final Loss Value: {}".format(loss_value))
-        # ask the bossman to call it a day
-        self.bossMan.stop()
-        end = time.time()
-        time_dif = end - start   # do the math
-        time_msg = "Time usage: {}".format(timedelta(seconds=int(round(time_dif))))
-        return time_msg
-    
+                        feed_dict = {self.network.Input_Tensor_Images: batch[0],
+                                     self.network.Input_Tensor_Labels: batch[1],
+                                     self.network.keep_prob: 0.8}
+
+                        _, step, summary = sess.run([self.network.train_drop_loss,
+                                                     self.network.global_step,
+                                                     self.network.merged], feed_dict)
 
 
 class Process_Network(object):
     """ This class handles Opimization / Visualization for TF Models """
-    def __init__(self, network, ipy=None):
-        self.ipy = ipy
+
+    def __init__(self, network):
         self.network = network
-
-        # get dataset from network
         self.dataset = network.dataset
-        # get options from network
         self.options = network.options
-        # get verbose
-        self.verbose = self.options.verbose
-
-        # this is extreme... use patience
-        # if self.verbose:
-        #    from pprint import pprint
-        #    pprint (vars(self.dataset))
-        #    pprint (vars(self.network))
-        # setup a better output
-
         # GONNA NEED SOME GLOBALS FOR WORKFLOW CONTROLS
         self.werk_done = 0
         self.best_score = 0
@@ -173,6 +96,24 @@ class Process_Network(object):
     def end(self):
         """ This is run at the end of a TF script session"""
         self.network.session.close()
+
+    def new_deal(self, iters=50, keep_prob=0.8):
+        with self.network.session as sess:
+            step = 0
+            for i in tqdm(range(iters)):
+                # while not self.bossMan.stop():
+                batch = self.dataset.next_batch(self.options.batch_size, shuffle=True)
+                if len(batch[0]) is len(batch[1]):
+                    feed_dict = {self.network.Input_Tensor_Images: batch[0],
+                                 self.network.Input_Tensor_Labels: batch[1],
+                                 self.network.keep_prob: keep_prob}
+
+                    _, step, summary = sess.run([self.network.train_op_4,
+                                                 self.network.global_step,
+                                                 self.network.merged], feed_dict)
+
+        print("finished training for {} iters, and {} steps".format(iters,step))
+
 
     def optimize(self, batch):
         """ This acuates the optimize funtion and batching function """
@@ -200,16 +141,16 @@ class Process_Network(object):
         start_readout = time.strftime("%a, %d %b %Y %H:%M:%S\n\n",
                                       time.gmtime())
         print("Start Time: {}\nTraining {} Iterations...".format(start_readout,
-              iters))
+                                                                 iters))
         for i in tqdm(range(iters)):
-            self.werk_done += 1    # tick the clock
+            self.werk_done += 1  # tick the clock
             batch = self.dataset.next_batch(self.options.batch_size)
             epoch = self.optimize(batch)
             if i % 25 == 0:
-                test_acc,\
-                    test_loss,\
-                    train_acc,\
-                    train_loss = self.feedback(batch)
+                test_acc, \
+                test_loss, \
+                train_acc, \
+                train_loss = self.feedback(batch)
 
                 if test_loss > self.best_score:
                     self.best_score = test_acc
@@ -222,23 +163,23 @@ class Process_Network(object):
         batch = self.dataset.next_batch(self.options.batch_size)
         self.feedback(batch)
 
-        end_time = time.time()             # AND STOP THE CLOCK...
-        time_dif = end_time - start_time   # do the math
-        time_msg = "Time usage: {}\n".format(timedelta(seconds=int(round(time_dif))))   # boom and done.
-        print("{}Epochs Complete: {}\nIters Complete: {}".format(time_msg,epoch,self.werk_done))
+        end_time = time.time()  # AND STOP THE CLOCK...
+        time_dif = end_time - start_time  # do the math
+        time_msg = "Time usage: {}\n".format(timedelta(seconds=int(round(time_dif))))  # boom and done.
+        print("{}Epochs Complete: {}\nIters Complete: {}".format(time_msg, epoch, self.werk_done))
 
-
-    def feedback(self,training_batch=False):
+    def feedback(self, training_batch=False):
         """WORKING THROUGH THE FEEDBACK DEBUGS!! 2_23_17  * finished same day... BOOM..."""
 
         """This will do a test for acc and loss"""
-        testing_start = 110 # should be randowm less than the _num examples
+        testing_start = 110  # should be randowm less than the _num examples
         msg = "Feedback: \n"
         msg += "Total Epochs Complete: {}\n".format(self.dataset._epochs_completed)
         msg += "Total Optimizations Complete: {}\n".format(self.werk_done)
-        Testing_set_images = self.dataset.train_images[testing_start:(testing_start+self.options.batch_size)]
-        Testing_set_labels = self.dataset.train_labels[testing_start:(testing_start+self.options.batch_size)]
-        test_dict = {self.network.Input_Tensor_Images: Testing_set_images, self.network.Input_Tensor_Labels: Testing_set_labels, self.network.keep_prob: 1.0}
+        Testing_set_images = self.dataset.train_images[testing_start:(testing_start + self.options.batch_size)]
+        Testing_set_labels = self.dataset.train_labels[testing_start:(testing_start + self.options.batch_size)]
+        test_dict = {self.network.Input_Tensor_Images: Testing_set_images,
+                     self.network.Input_Tensor_Labels: Testing_set_labels, self.network.keep_prob: 1.0}
 
         # this is the get_loss function
         test_loss = self.network.loss.eval(feed_dict=test_dict)
@@ -249,35 +190,26 @@ class Process_Network(object):
         msg += "Test Acc: {:1%}".format(test_acc)
 
         if training_batch:
-            training_dict = {self.network.Input_Tensor_Images: training_batch[0], self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
+            training_dict = {self.network.Input_Tensor_Images: training_batch[0],
+                             self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
             train_loss = self.network.loss.eval(feed_dict=training_dict)
             msg += "Train Loss: {:.1f%}".format(train_loss)
             train_acc = self.network.session.run(self.network.accuracy, feed_dict=training_dict)
             msg += "Train Acc: {:.1f%}".format(train_acc)
-            return test_acc,test_loss,train_acc,train_loss
+            return test_acc, test_loss, train_acc, train_loss
         if self.verbose: print(msg); self.print_weights();
-        return test_acc,test_loss
-
-
-
-
-
-
-
-
-
-
-
+        return test_acc, test_loss
 
     """NEW STUFF!!! TESTING VERIFICATION! """
+
     def print_weights(self):
         """This goes through all the Conv Layers and prints their weights"""
-        x=0
+        x = 0
         for i in range(len(self.network.conv_layers_wlist)):
-           w = self.get_weights(self.network.conv_layers_wlist[x])
-           n = self.network.conv_layers_nameslist[x]
-           x += 1
-           print("\nLayer:{0:s} \n\tWeights:\n\tMean: {1:.5f}, Stdev: {2:.5f}".format(n,w.mean(), w.std()))
+            w = self.get_weights(self.network.conv_layers_wlist[x])
+            n = self.network.conv_layers_nameslist[x]
+            x += 1
+            print("\nLayer:{0:s} \n\tWeights:\n\tMean: {1:.5f}, Stdev: {2:.5f}".format(n, w.mean(), w.std()))
         return True
 
     def get_weights(self, w=None):
@@ -285,21 +217,11 @@ class Process_Network(object):
         This will return the final layer weights with no params, or that
         layers weights otherwise
         """
-        if w is not None: x = self.network.session.run(w)
-        else: x = self.network.session.run(self.network.weights)
+        if w is not None:
+            x = self.network.session.run(w)
+        else:
+            x = self.network.session.run(self.network.weights)
         return x
-
-
-
-
-
-
-
-
-
-
-
-
 
     """ RECLAMATION YARD """
 
@@ -309,35 +231,37 @@ class Process_Network(object):
         cls_pred = np.zeros(shape=num_images, dtype=np.int)
         i = 0
         while i < num_images:
-            j = min(i + batch_size, num_images) # j is remade frest every loop...
-            #feed_dict = self.network.feed_dictionary(test=False,x_batch=input_tensor, y_true_batch=labels)
-            feed_dict = {self.network.Input_Tensor_Images: input_tensor[i:j, :], self.network.Input_Tensor_Labels: labels[i:j, :]}
+            j = min(i + batch_size, num_images)  # j is remade frest every loop...
+            # feed_dict = self.network.feed_dictionary(test=False,x_batch=input_tensor, y_true_batch=labels)
+            feed_dict = {self.network.Input_Tensor_Images: input_tensor[i:j, :],
+                         self.network.Input_Tensor_Labels: labels[i:j, :]}
             cls_pred[i:j] = self.network.session.run(self.network.y_pred_cls, feed_dict=feed_dict)
             i = j
         correct = (cls_true == cls_pred)
         return correct, cls_pred
 
     def run_test(self):
-        return self.BATCH_VERIFY(input_tensor = self.dataset.test_images,
-                                 labels       = self.dataset.test_labels,
-                                 cls_true     = self.dataset.test_cls)
+        return self.BATCH_VERIFY(input_tensor=self.dataset.test_images,
+                                 labels=self.dataset.test_labels,
+                                 cls_true=self.dataset.test_cls)
+
     # NOT IMPLEMENTED YET...
     def run_valid(self):
-        return self.BATCH_VERIFY(input_tensor = self.dataset.valid_images,
-                                 labels       = self.dataset.valid_labels,
-                                 cls_true     = self.dataset.valid_cls)
+        return self.BATCH_VERIFY(input_tensor=self.dataset.valid_images,
+                                 labels=self.dataset.valid_labels,
+                                 cls_true=self.dataset.valid_cls)
 
-    def run_train(self,):
-        x = self.network.session.run(self.network.accuracy, feed_dict=self.feed_train)                   ## TRAINING ACCURACY
+    def run_train(self, ):
+        x = self.network.session.run(self.network.accuracy, feed_dict=self.feed_train)  ## TRAINING ACCURACY
         return x
 
-    def challenge(self,):
-        #train_acc   = self.run_train()
-        test, _     = self.run_test()
-        #valid, _    = self.run_valid()
-        test_sum    = test.sum()
-        #valid_sum   = valid.sum()
+    def challenge(self, ):
+        # train_acc   = self.run_train()
+        test, _ = self.run_test()
+        # valid, _    = self.run_valid()
+        test_sum = test.sum()
+        # valid_sum   = valid.sum()
 
-        test_acc    = float(test_sum) / len(test)
-        #valid_acc   = float(valid_sum) / len(valid)
-        return train_acc, test_acc#, valid_acc
+        test_acc = float(test_sum) / len(test)
+        # valid_acc   = float(valid_sum) / len(valid)
+        return train_acc, test_acc  # , valid_acc

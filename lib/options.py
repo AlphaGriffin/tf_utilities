@@ -45,12 +45,14 @@ class options(object):
     def __init__(self,
                  verbose=True,
                  learning_rate=1e-7,
-                 batch_size=100,
-                 conv_layers=5,
-                 fc_layers=5,
+                 batch_size=42,
+                 conv_layers=2,
+                 fc_layers=3,
+                 f_size=5,
                  fc_size=128,
-                 save_path=None,
-                 logdir=None):
+                 save_path="/home/eric/git/tf_utilities/models/",
+                 logdir="/home/eric/git/tf_utilities/train_logs/"
+                 ):
         
         self.verbose = verbose
         
@@ -59,18 +61,9 @@ class options(object):
         self.batch_size = batch_size
 
         # CNN options
-        self.conv_layers = 5      # of conv layers 2 stock
-        self.fc_layers = 5        # of fully connected layers 2 stock
-        self.f_size = 5           # fixed size not file size... silly 5 stock
-        self.fc_size = 128        # Max # of elements in FC flatened layers
-        
-        """Use Hard Coded Personal Pathing"""
-        # Save Model Path
-        if save_path is None:
-            save_path = "/home/eric/git/tf_utilities/models/"
+        self.conv_layers = conv_layers  # of conv layers 2 stock
+        self.fc_layers = fc_layers      # of fully connected layers 2 stock
+        self.f_size = f_size            # fixed size not file size... silly 5 stock
+        self.fc_size = fc_size          # Max # of elements in FC flatened layers
         self.save_path = save_path
-        
-        # LogDir for Supervisor Object
-        if logdir is None:
-            self.logdir = "/home/eric/git/tf_utilities/train_logs/"
         self.logDir = logdir
