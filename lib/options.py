@@ -67,3 +67,8 @@ class options(object):
         self.fc_size = fc_size          # Max # of elements in FC flatened layers
         self.save_path = save_path
         self.logDir = logdir
+        
+        # Mupen64plus stuff
+        #self.save_path = "/home/eric/.local/share/mupen64plus/model/mariokart64/"
+        # server port for webAPI model short range
+        #self.port = 8321
