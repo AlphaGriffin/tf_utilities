@@ -71,6 +71,7 @@ class procNet(object):
             for i in tqdm(range(iters)):
                 while not self.network.bossMan.stop():
                     batch = self.dataset.next_batch(self.options.batch_size)
+                    print("{}{}".format(batch[0], batch[1]))
                     if len(batch[0]) is len(batch[1]):
                         feed_dict = {self.network.Input_Tensor_Images: batch[0],
                                      self.network.Input_Tensor_Labels: batch[1],

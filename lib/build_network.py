@@ -56,14 +56,17 @@ class Build_Adv_Network(object):
         >>> network = build_network.Build_Adv_Network(Mupen64_dataset)
         """
         self.dataset = dataset
-        self.options = self.dataset.options
+        if dataset is not None:
+            self.options = self.dataset.options
+        else:
+            self.options = 0
         # this is in the wrong place ... i think
         self.step_size = int(self.dataset._num_examples / self.options.batch_size)
 
         # HERE WE GO!!
 
         # first start a new logDir folder DONT MESS THIS UP! ...
-        self.logDir()
+        # self.logDir()
         if init: self.init_new_graph();
 
     def logDir(self):
@@ -409,83 +412,3 @@ class Build_Adv_Network(object):
             z = tf.matmul(a, ua_v)
 
         return z
-
-    ###################################################################
-    """this is Deprication Island... kept for no good reason"""
-    ###################################################################
-    """
-    def feed_single(self, layer, image=None):
-        if image is not None: img = image;
-        else: img = self.test_IMAGE
-        feed_dict = {self.Input_Tensor_Images: [img]}
-        values = self.session.run(layer, feed_dict=feed_dict)
-        return values, img
-
-    def prob_dictionary(self, test=True, x_batch=None, y_true_batch=None, keep=1.0):
-        in_tensor = self.x_image
-        in_tensor_label = self.Input_Tensor_Labels
-        keep_prob = self.keep_prob
-
-        if not test:
-            dataset_dictionary = {in_tensor:x_batch,
-                                  in_tensor_label:y_true_batch,
-                                  keep_prob:keep}
-        else:
-            dataset_dictionary = { in_tensor: self.test_batch[0],
-                                  in_tensor_label:self.test_batch[1],
-                                  keep_prob:keep }
-        return dataset_dictionary
-
-    def feed_dictionary(self, test=True, x_batch=None, y_true_batch=None):
-        dataset = self.dataset
-        #return { INPUT_TENSOR: INPUT_IMG, INPUT_TENSOR_LABEL:input_label, inuput_true_: Test_cls}
-        in_tensor = self.x_image
-        in_tensor_label = self.Input_Tensor_Labels
-        in_true = self.Input_True_Labels
-        if test is not True:
-            dataset_dictionary = {in_tensor: x_batch,
-                                  in_tensor_label: y_true_batch}
-        else:
-            dataset_dictionary = {in_tensor: self.test_batch[0],
-                                  in_tensor_label: dataset.test_labels,
-                                  in_true: dataset.test_cls}
-        return dataset_dictionary
-
-    def BATCH_VERIFY(self, input_tensor, labels, cls_true):
-        batch_size = self.options.classify_batch_size
-        num_images = len(input_tensor)
-        cls_pred = np.zeros(shape=num_images, dtype=np.int)
-        i = 0
-        while i < num_images:
-            j = min(i + batch_size, num_images) # j is remade frest every loop...
-            feed_dict = {self.Input_Tensor_Images: input_tensor[i:j], self.Input_Tensor_Labels: labels[i:j]}
-            cls_pred[i:j] = self.session.run(self.y_pred_cls, feed_dict=feed_dict)
-            i = j
-        correct = (cls_true == cls_pred)
-        return correct, cls_pred
-    """
-    """
-    TODO:
-    def build_out_distrubited_graph(self):
-        cluster = ""
-        worker = ""
-        server = ""
-
-        # Calculate the learning rate schedule.
-        num_batches_per_epoch = (cifar10.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN /
-                                 FLAGS.batch_size)
-
-        decay_steps = int(num_batches_per_epoch * cifar10.NUM_EPOCHS_PER_DECAY)
-
-        # Decay the learning rate exponentially based on the number of steps.
-        lr = tf.train.exponential_decay(cifar10.INITIAL_LEARNING_RATE,
-                                        global_step,
-                                        decay_steps,
-                                        cifar10.LEARNING_RATE_DECAY_FACTOR,
-                                        staircase=True)
-
-        gradient_cluster = []
-        with tf.variable_scope(tf.get_variable_scope()):
-            self.build_default_values()
-        grads = average_gradients(tower_grads)
-    """
