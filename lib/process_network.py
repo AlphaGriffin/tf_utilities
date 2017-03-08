@@ -6,7 +6,9 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import os
 
+working_dir = os.path.dirname(os.path.realpath(__file__))
 matplotlib.use('Agg')
 
 """
@@ -30,7 +32,7 @@ class procNet(object):
         self.dataset = network.dataset
         self.options = network.options
 
-    def run_network(self, iters=50, keep_prob=0.8):
+    def run_network(self, iters=5000, keep_prob=0.8):
         """
         This is a Basic optimization loop exploration... single user
 
@@ -64,205 +66,111 @@ class procNet(object):
         logdir="{}".format(self.options.logDir)
         """
         # be civilized
+        Error_Log = []
         start = time.time()
-        with self.network.bossMan.managed_session() as sess:
-            #sumwriter = tf.summary.FileWriter(logdir=self.options.logDir, graph=tf.get_default_graph())
-            # tf.train.write_graph(tf.get_default_graph(), self.options.logDir, 'graph.pbtxt')
-            for i in tqdm(range(iters)):
-                while not self.network.bossMan.stop():
-                    batch = self.dataset.next_batch(self.options.batch_size)
-                    print("{}{}".format(batch[0], batch[1]))
-                    if len(batch[0]) is len(batch[1]):
-                        feed_dict = {self.network.Input_Tensor_Images: batch[0],
-                                     self.network.Input_Tensor_Labels: batch[1],
-                                     self.network.keep_prob: 0.8}
+        # create A BRAND NEW DIRECTORY FOR GODS SAKE!
+        self.make_savepath()
+        # create supervisor object
+        self.bossMan = tf.train.Supervisor(is_chief=True,
+                                           logdir=self.options.logDir,
+                                           checkpoint_basename='alpha.griffin',
+                                           init_op=self.network.init_op,
+                                           summary_op=self.network.merged,
+                                           saver=self.network.saver,
+                                           global_step=self.network.global_step,
+                                           save_model_secs=60)
+        try:
+            with self.bossMan.managed_session() as sess:
+                print("Started New TF Supervised session.\nCurrent time:{}\nProcessing {} Iters".format(start, iters))
+                #sumwriter = tf.summary.FileWriter(logdir=self.options.logDir, graph=tf.get_default_graph())
+                # tf.train.write_graph(tf.get_default_graph(), self.options.logDir, 'graph.pbtxt')
+                try:
+                    for i in tqdm(range(iters)):
+                        try:
+                            #while not self.bossMan.stop():
+                            batch = self.dataset.next_batch(self.options.batch_size)
+                            # print("iters: {}, epochs: {}".format(i, self.dataset._epochs_completed))
+                            if len(batch[0]) is len(batch[1]):
 
-                        _, step, summary = sess.run([self.network.train_drop_loss,
-                                                     self.network.global_step,
-                                                     self.network.merged], feed_dict)
+                                feed_dict = {self.network.Input_Tensor_Images: batch[0],
+                                             self.network.Input_Tensor_Labels: batch[1],
+                                             self.network.keep_prob: 0.8}
 
+                                _, step, summary = sess.run([self.network.train_drop_loss,
+                                                             self.network.global_step,
+                                                             self.network.merged
+                                                             ], feed_dict)
+                        except Exception as e:
+                            Error_Log.append("Error in looper @ {}: {}, iter: {}\n".format(time.time(), e, i))
+                except Exception as e:
+                    Error_Log.append("Error with looper @ {}: {}\n".format(time.time(), e))
+        except Exception as e:
+            Error_Log.append("Error with session @ {}: {}\n".format(time.time(), e))
+            # final closing summary write operations
+            # draw out 1 in 100 images for tensorboard
+            # plot scalars with matplot lib
+            # double check savefiles ... maybe should be another job
+        msg = "Finished Training new Model for {} Iterations.\nSave Path Dir is: {}\n".format(iters, self.options.logDir)
+        if Error_Log:
+            msg += "Found Errors in Log: {}".format(len(Error_Log))
+            msg += "{}".format("{}".format(e) for e in [Error_Log])
+        print(msg)
 
-class Process_Network(object):
-    """ This class handles Opimization / Visualization for TF Models """
-
-    def __init__(self, network):
-        self.network = network
-        self.dataset = network.dataset
-        self.options = network.options
-        # GONNA NEED SOME GLOBALS FOR WORKFLOW CONTROLS
-        self.werk_done = 0
-        self.best_score = 0
-        self.last_score = 0
-
-    def end(self):
-        """ This is run at the end of a TF script session"""
-        self.network.session.close()
-
-    def new_deal(self, iters=50, keep_prob=0.8):
-        with self.network.session as sess:
-            step = 0
-            for i in tqdm(range(iters)):
-                # while not self.bossMan.stop():
-                batch = self.dataset.next_batch(self.options.batch_size, shuffle=True)
-                if len(batch[0]) is len(batch[1]):
-                    feed_dict = {self.network.Input_Tensor_Images: batch[0],
-                                 self.network.Input_Tensor_Labels: batch[1],
-                                 self.network.keep_prob: keep_prob}
-
-                    _, step, summary = sess.run([self.network.train_op_4,
-                                                 self.network.global_step,
-                                                 self.network.merged], feed_dict)
-
-        print("finished training for {} iters, and {} steps".format(iters,step))
-
-
-    def optimize(self, batch):
-        """ This acuates the optimize funtion and batching function """
-        if len(batch[0]) is len(batch[1]):
-            Dict = {self.network.Input_Tensor_Images: batch[0],
-                    self.network.Input_Tensor_Labels: batch[1],
-                    self.network.keep_prob: 0.8}
-            self.network.session.run(self.network.optimizer, feed_dict=Dict)
-        return batch[2]
-
-    def save_model(self, sess=None):
-        """Saves the file using a preset saver func in the builder"""
-        model_name = self.dataset.name
-        save_path = self.options.save_path
-        ext = ".ckpt"
-        filename = "{}{}_model_best_acc{}".format(save_path, model_name, ext)
-        self.network.saver.save(self.network.session, filename)
-        return filename
-
-    def run(self, timeout=5):
-        """ This will perform the optimize function"""
-        iters = int(1e4)
-        epoch = 0
-        start_time = time.time()
-        start_readout = time.strftime("%a, %d %b %Y %H:%M:%S\n\n",
-                                      time.gmtime())
-        print("Start Time: {}\nTraining {} Iterations...".format(start_readout,
-                                                                 iters))
-        for i in tqdm(range(iters)):
-            self.werk_done += 1  # tick the clock
-            batch = self.dataset.next_batch(self.options.batch_size)
-            epoch = self.optimize(batch)
-            if i % 25 == 0:
-                test_acc, \
-                test_loss, \
-                train_acc, \
-                train_loss = self.feedback(batch)
-
-                if test_loss > self.best_score:
-                    self.best_score = test_acc
-                    self.last_score = self.werk_done
-                    self.save_model()
-                if self.werk_done - self.last_score >= timeout:
-                    break
-
-        print("Finished Training... Waiting on some Info...")
-        batch = self.dataset.next_batch(self.options.batch_size)
-        self.feedback(batch)
-
-        end_time = time.time()  # AND STOP THE CLOCK...
-        time_dif = end_time - start_time  # do the math
-        time_msg = "Time usage: {}\n".format(timedelta(seconds=int(round(time_dif))))  # boom and done.
-        print("{}Epochs Complete: {}\nIters Complete: {}".format(time_msg, epoch, self.werk_done))
-
-    def feedback(self, training_batch=False):
-        """WORKING THROUGH THE FEEDBACK DEBUGS!! 2_23_17  * finished same day... BOOM..."""
-
-        """This will do a test for acc and loss"""
-        testing_start = 110  # should be randowm less than the _num examples
-        msg = "Feedback: \n"
-        msg += "Total Epochs Complete: {}\n".format(self.dataset._epochs_completed)
-        msg += "Total Optimizations Complete: {}\n".format(self.werk_done)
-        Testing_set_images = self.dataset.train_images[testing_start:(testing_start + self.options.batch_size)]
-        Testing_set_labels = self.dataset.train_labels[testing_start:(testing_start + self.options.batch_size)]
-        test_dict = {self.network.Input_Tensor_Images: Testing_set_images,
-                     self.network.Input_Tensor_Labels: Testing_set_labels, self.network.keep_prob: 1.0}
-
-        # this is the get_loss function
-        test_loss = self.network.loss.eval(feed_dict=test_dict)
-        msg += "Test Loss: {:.1f%}\n".format(test_loss)
-
-        # this is the print acc funtion
-        test_acc = self.network.session.run(self.network.accuracy, feed_dict=test_dict)
-        msg += "Test Acc: {:1%}".format(test_acc)
-
-        if training_batch:
-            training_dict = {self.network.Input_Tensor_Images: training_batch[0],
-                             self.network.Input_Tensor_Labels: training_batch[1], self.network.keep_prob: 1.0}
-            train_loss = self.network.loss.eval(feed_dict=training_dict)
-            msg += "Train Loss: {:.1f%}".format(train_loss)
-            train_acc = self.network.session.run(self.network.accuracy, feed_dict=training_dict)
-            msg += "Train Acc: {:.1f%}".format(train_acc)
-            return test_acc, test_loss, train_acc, train_loss
-        if self.verbose: print(msg); self.print_weights();
-        return test_acc, test_loss
-
-    """NEW STUFF!!! TESTING VERIFICATION! """
-
-    def print_weights(self):
-        """This goes through all the Conv Layers and prints their weights"""
-        x = 0
-        for i in range(len(self.network.conv_layers_wlist)):
-            w = self.get_weights(self.network.conv_layers_wlist[x])
-            n = self.network.conv_layers_nameslist[x]
-            x += 1
-            print("\nLayer:{0:s} \n\tWeights:\n\tMean: {1:.5f}, Stdev: {2:.5f}".format(n, w.mean(), w.std()))
-        return True
-
-    def get_weights(self, w=None):
+    def make_savepath(self):
         """
-        This will return the final layer weights with no params, or that
-        layers weights otherwise
+        Verify paths given in the options and make them.
         """
-        if w is not None:
-            x = self.network.session.run(w)
+        # print the paths given:
+        path = self.options.logDir
+        print("Searching for Paths:\nModel Save Path:".format(path))
+
+        if os.path.isdir(path):
+            print("found path creating new logging directory.")
+            num_logs = len(os.listdir(path))
+            new_path = os.path.join(path,"log_{}".format(num_logs))
+            os.mkdir(new_path)
+            self.options.logDir = new_path
+            print("The Save Dir for this session is: {}\nGood Luck!".format(new_path))
+            return True
         else:
-            x = self.network.session.run(self.network.weights)
-        return x
+            print("Something is wrong with your Options.logDir, you entered:\n{}\nPlease use a complete path!".format(
+                                                                                                                path))
+            try:
+                path = "/tmp/TF_MODEL"
+                if os.path.isdir("/tmp/TF_MODEL"):
+                    num_logs - len(os.listdir(path))
+                    new_path = os.path.join(path, "log_{}".format(num_logs))
+                    os.mkdir(new_path)
+                    self.options.logDir = new_path
+                    print("The Save Dir for this session is: {}\nGood Luck!".format(new_path))
+                    return True
+                else:
+                    os.mkdir(path)
+                    new_path = os.path.join(path, "Log_0")
+                    os.mkdir(new_path)
+                    self.options.logDir = new_path
+                    print("The Save Dir for this session is: {}\nGood Luck!".format(new_path))
+                    return True
+            except Exception as e:
+                print("SORRY BRO! Nothing is working...")
+                return False
+                # sys.exit()
 
-    """ RECLAMATION YARD """
+    def que_network(self): pass
 
-    def BATCH_VERIFY(self, input_tensor, labels, cls_true):
-        batch_size = self.options.batch_size
-        num_images = len(input_tensor)
-        cls_pred = np.zeros(shape=num_images, dtype=np.int)
-        i = 0
-        while i < num_images:
-            j = min(i + batch_size, num_images)  # j is remade frest every loop...
-            # feed_dict = self.network.feed_dictionary(test=False,x_batch=input_tensor, y_true_batch=labels)
-            feed_dict = {self.network.Input_Tensor_Images: input_tensor[i:j, :],
-                         self.network.Input_Tensor_Labels: labels[i:j, :]}
-            cls_pred[i:j] = self.network.session.run(self.network.y_pred_cls, feed_dict=feed_dict)
-            i = j
-        correct = (cls_true == cls_pred)
-        return correct, cls_pred
+    def load_network(self, path=None):
+        """Get most recent version in the log_dir"""
+        if path is None:
+            path = self.options.logDir
+        if os.path.isdir(path):
+            print("Searching for most recent Save in:\n{}".format(path))
+            num_logs = len(os.listdir(path)) - 1
+            # log files start with 0 so... num_logs -1 is used
+            folder_name = "log_{}".format(num_logs)
+            path = os.path.join(path, folder_name)
+        else:
+            return False
+        # path is now self.options.logDir + log_?
+        print("Working Dir: {}".format(path))
+        # do the TF train loading thing!
 
-    def run_test(self):
-        return self.BATCH_VERIFY(input_tensor=self.dataset.test_images,
-                                 labels=self.dataset.test_labels,
-                                 cls_true=self.dataset.test_cls)
-
-    # NOT IMPLEMENTED YET...
-    def run_valid(self):
-        return self.BATCH_VERIFY(input_tensor=self.dataset.valid_images,
-                                 labels=self.dataset.valid_labels,
-                                 cls_true=self.dataset.valid_cls)
-
-    def run_train(self, ):
-        x = self.network.session.run(self.network.accuracy, feed_dict=self.feed_train)  ## TRAINING ACCURACY
-        return x
-
-    def challenge(self, ):
-        # train_acc   = self.run_train()
-        test, _ = self.run_test()
-        # valid, _    = self.run_valid()
-        test_sum = test.sum()
-        # valid_sum   = valid.sum()
-
-        test_acc = float(test_sum) / len(test)
-        # valid_acc   = float(valid_sum) / len(valid)
-        return train_acc, test_acc  # , valid_acc

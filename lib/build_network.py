@@ -12,13 +12,17 @@ Progress
     2-25-17: Adding more decoration to functions for long term readability
     and use. Also making ready for the first complete run of TKart.
 
+    3-7-17: Going to start renaming some variables to bring them toward
+    compliance with pep, god forbid im out of compliance. also we need to
+    streamline some non-distributed known use cases.
+
 TODO
 ----
     * write a demo on how to go from start to finish. do a youtube video,
       build a docker. build a win exe. build wtf mac uses.
     * do a lot of catch variables for setup use... be verbose.
-    * finish tensorboard dev output progess step.
-    * finish distrubted gpu progess step. 
+    * finish tensorboard dev output progess step. - done
+    * finish distrubted gpu progess step.  - mostly done.. supervisor is impelmented
     * finish UML output image.
 
 Target for master push
@@ -30,13 +34,11 @@ Target for master push
 
 import tensorflow as tf
 from datetime import timedelta
-# import numpy as np
+# import numpy as np # SEEDS DAMNIT!
 import time
 from tqdm import tqdm
 import os
 
-# import io
-# for tensorboard output
 # import matplotlib
 # matplotlib.use('Agg')
 # import matplotlib.pyplot as plt
@@ -68,15 +70,6 @@ class Build_Adv_Network(object):
         # first start a new logDir folder DONT MESS THIS UP! ...
         # self.logDir()
         if init: self.init_new_graph();
-
-    def logDir(self):
-        path = self.options.logDir
-        if os.path.isdir(path):
-            num_logs = len(os.listdir(path))
-            new_path = os.path.join(path,"log_{}".format(num_logs))
-            os.mkdir(new_path)
-            self.options.logDir = new_path
-            print(new_path)
 
     def init_new_graph(self):
         self.build_default_values('/gpu:0')
@@ -125,7 +118,7 @@ class Build_Adv_Network(object):
                 self.x_image = self.Input_Tensor_Images  # current default layer
 
             with tf.name_scope("keep_prob"):
-                self.keep_prob = tf.placeholder(tf.float32)  # new feature goes with the dropout option
+                self.keep_prob = tf.placeholder(tf.float32, name="Keep_prob")  # new feature goes with the dropout option
 
             """ Do Advanced Steps """
             with tf.name_scope("adv_steps"):
@@ -138,7 +131,6 @@ class Build_Adv_Network(object):
             self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final_Output")
         tf.summary.histogram('activations', self.Output_True_Layer)
 
-        """ Working Maths """
         """ Variables """
         with tf.name_scope("Training_Methods"):
             with tf.name_scope("cross_entropy_softmax"):
@@ -195,6 +187,7 @@ class Build_Adv_Network(object):
         )
 
         """ Create Supervisor Object"""
+        """
         self.bossMan = tf.train.Supervisor(is_chief=True,
                                            logdir=self.options.logDir,
                                            checkpoint_basename='alpha.griffin',
@@ -204,7 +197,7 @@ class Build_Adv_Network(object):
                                            global_step=self.global_step,
                                            save_model_secs=60)
         print("We are passing this test.")
-
+        """
     ###################################################################
     """These are all impelemented in the above build function"""
     ###################################################################
@@ -243,6 +236,12 @@ class Build_Adv_Network(object):
     """
 
     def BUILD_CONV_LAYERS(self):
+        """
+        Magically construct many Convultional layers for a Neural Network.
+        :return:
+            An unused list of all the layers_names, weights and biases for each layer. these are added to tensorboard
+            automatically.
+        """
         layers = self.options.conv_layers
         self.conv_layers_nameslist = []
         self.conv_layers_list = []
@@ -289,6 +288,13 @@ class Build_Adv_Network(object):
         return self.conv_layers_nameslist, self.conv_layers_list, self.conv_layers_wlist
 
     def BUILD_FC_LAYER(self, layers):
+        """
+        Magically create a huge number of Fully connected layers.
+        :param layers:
+            Number of FC layers to create.
+        :return:
+            returns a human readable non used list of the layer names. These are added to tensorboard automatically.
+        """
         self.fc_layers_nameslist = []
         self.fc_layers_list = []
         self.fc_layers_wlist = []
@@ -338,12 +344,23 @@ class Build_Adv_Network(object):
         return self.fc_layers_nameslist, self.fc_layers_list
 
     def new_weights(self, shape):
+        """This generates a new weight for each layer"""
         return tf.Variable(tf.truncated_normal(shape, stddev=0.05), name="weight")
 
     def new_biases(self, length):
+        """This generates a new bias for each layer"""
         return tf.Variable(tf.constant(0.05, shape=[length]), name="bias")
 
     def new_conv_layer(self, input, filter_size, chan, num_filters, use_pooling=True):
+        """
+        :param input:
+        :param filter_size:
+        :param chan:
+        :param num_filters:
+        :param use_pooling:
+        :return:
+            This layer, weights and biases for tensorboard output
+        """
         if self.options.verbose: print("#:\tStarting new conv Layer!...")
         X_shape = [filter_size, filter_size, chan, num_filters]
         weights = self.new_weights(shape=X_shape)
@@ -385,7 +402,6 @@ class Build_Adv_Network(object):
 
     ###################################################################
     """These are New ideas maybe not impelmented yet..."""
-
     ###################################################################
     # Our UA function
     def univAprox(self, x, hidden_dim=50):

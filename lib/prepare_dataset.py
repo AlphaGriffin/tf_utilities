@@ -26,7 +26,7 @@ class Prepare(object):
     
         
                 
-    def make_BW(self,rgb):
+    def make_BW(self, rgb):
         """ 
         This is the "rec601 luma" algorithm to compute 8-bit greyscale
         Parameters

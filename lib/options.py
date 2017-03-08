@@ -45,15 +45,15 @@ class options(object):
     def __init__(self,
                  verbose=True,
                  learning_rate=1e-7,
-                 batch_size=42,
-                 conv_layers=2,
-                 fc_layers=3,
+                 batch_size=100,
+                 conv_layers=5,
+                 fc_layers=5,
                  f_size=5,
                  fc_size=128,
-                 save_path="/home/eric/git/tf_utilities/models/",
-                 logdir="/home/eric/git/tf_utilities/train_logs/"
+                 save_path="/home/eric/repos/pycharm_repos/tf_utilities/models/",
+                 logdir="/home/eric/repos/pycharm_repos/tf_utilities/models/"
                  ):
-        
+
         self.verbose = verbose
         
         # learning rate has been DEPRICATED
