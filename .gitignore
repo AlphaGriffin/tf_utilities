@@ -1,6 +1,9 @@
 # Remove my datasets and models
 /dataset
+
 /models
+.models
+
 /exportToHTML
 .idea
 /hiddenStuff

@@ -31,14 +31,13 @@ Target for master push
       with this setup.
     * produce a Tensorboard output with a guide for setup
 """
-
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from datetime import timedelta
 # import numpy as np # SEEDS DAMNIT!
 import time
 from tqdm import tqdm
-import os
-
 # import matplotlib
 # matplotlib.use('Agg')
 # import matplotlib.pyplot as plt
@@ -69,7 +68,7 @@ class Build_Adv_Network(object):
 
         # first start a new logDir folder DONT MESS THIS UP! ...
         # self.logDir()
-        if init: self.init_new_graph();
+        #if init: self.init_new_graph();
 
     def init_new_graph(self):
         self.build_default_values('/gpu:0')
@@ -79,7 +78,7 @@ class Build_Adv_Network(object):
     """This is bassically the init."""
     ###################################################################
 
-    def build_default_values(self, worker):
+    def build_default_values(self, worker=None):
         """
         This builds out the model from the options for a TF Graph
 
@@ -180,10 +179,10 @@ class Build_Adv_Network(object):
 
         """ Create Saver object"""
         self.saver = tf.train.Saver(
-            var_list={"{}".format(v): v for v in [tf.model_variables()]},
+            #var_list={"{}".format(v): v for v in [tf.model_variables()]},
             write_version=tf.train.SaverDef.V2,
             sharded=True,
-            keep_checkpoint_every_n_hours=1.0
+            keep_checkpoint_every_n_hours=.001
         )
 
         """ Create Supervisor Object"""
