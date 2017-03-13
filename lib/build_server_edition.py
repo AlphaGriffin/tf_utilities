@@ -1,83 +1,157 @@
-#!/usr/bin/python
-# Copyright (C) 2016 Alpha Griffin
-# Copyright (C) 2017 Alpha Griffin
+# Copyright 2016 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
+# !/usr/bin/env python2.7
+"""Train and export a simple Softmax Regression TensorFlow model.
+
+The model is from the TensorFlow "MNIST For ML Beginner" tutorial. This program
+simply follows all its training instructions, and uses TensorFlow SavedModel to
+export the trained model with proper signatures that can be loaded by standard
+tensorflow_model_server.
+
+Usage: mnist_export.py [--training_iteration=x] [--model_version=y] export_dir
 """
-Objective
----------
-    build a more dynamic and easily tweakable TF frontend for eventual GUI.
 
-Progress
---------
-    2-25-17: Adding more decoration to functions for long term readability
-    and use. Also making ready for the first complete run of TKart.
-
-    3-7-17: Going to start renaming some variables to bring them toward
-    compliance with pep, god forbid im out of compliance. also we need to
-    streamline some non-distributed known use cases.
-
-TODO
-----
-    * write a demo on how to go from start to finish. do a youtube video,
-      build a docker. build a win exe. build wtf mac uses.
-    * do a lot of catch variables for setup use... be verbose.
-    * finish tensorboard dev output progess step. - done
-    * finish distrubted gpu progess step.  - mostly done.. supervisor is impelmented
-    * finish UML output image.
-
-Target for master push
-----------------------
-    * produce the tutorial results of the MNIST lesson and the TKart lesson
-      with this setup.
-    * produce a Tensorboard output with a guide for setup
-"""
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import sys
+
 import tensorflow as tf
-from datetime import timedelta
-# import numpy as np # SEEDS DAMNIT!
-import time
-from tqdm import tqdm
-# import matplotlib
-# matplotlib.use('Agg')
-# import matplotlib.pyplot as plt
+from tensorflow.python.saved_model import builder as saved_model_builder
+from tensorflow.python.saved_model import signature_constants
+from tensorflow.python.saved_model import signature_def_utils
+from tensorflow.python.saved_model import tag_constants
+from tensorflow.python.saved_model import utils
+from tensorflow.python.util import compat
 
-"""!!!DEV BUILD IN PROGRESS!!!"""
+from tensorflow_serving.example import mnist_input_data
+
+tf.app.flags.DEFINE_integer('training_iteration', 1000,
+                            'number of training iterations.')
+tf.app.flags.DEFINE_integer('model_version', 1, 'version number of the model.')
+tf.app.flags.DEFINE_string('work_dir', '/tmp', 'Working directory.')
+FLAGS = tf.app.flags.FLAGS
 
 
-class Build_Adv_Network(object):
-    """
-    Dynamically create a Tensorflow Network from the given Input Options.
-    """
+def main(_):
+    if len(sys.argv) < 2 or sys.argv[-1].startswith('-'):
+        print('Usage: mnist_export.py [--training_iteration=x] '
+              '[--model_version=y] export_dir')
+        sys.exit(-1)
+    if FLAGS.training_iteration <= 0:
+        print
+        'Please specify a positive value for training iteration.'
+        sys.exit(-1)
+    if FLAGS.model_version <= 0:
+        print
+        'Please specify a positive value for version number.'
+        sys.exit(-1)
 
-    def __init__(self, dataset=None, init=True):
-        """
-        example
-        -------
-        >>> network = build_network.Build_Adv_Network(Mupen64_dataset)
-        """
-        self.dataset = dataset
-        if dataset is not None:
-            self.options = self.dataset.options
-        else:
-            self.options = 0
-        # this is in the wrong place ... i think
-        # self.step_size = int(self.dataset._num_examples / self.options.batch_size)
+    # Train model
+    print
+    'Training model...'
+    mnist = mnist_input_data.read_data_sets(FLAGS.work_dir, one_hot=True)
 
-        # HERE WE GO!!
 
-        # first start a new logDir folder DONT MESS THIS UP! ...
-        # self.logDir()
-        #if init: self.init_new_graph();
+    sess = tf.InteractiveSession()
+    serialized_tf_example = tf.placeholder(tf.string, name='tf_example')
+    feature_configs = {'x': tf.FixedLenFeature(shape=[784], dtype=tf.float32), }
 
-    def init_new_graph(self):
-        self.build_default_values('/gpu:0')
-        print("New Network is prepared for processing!")
+    tf_example = tf.parse_example(serialized_tf_example, feature_configs)
+    x = tf.identity(tf_example['x'], name='x')  # use tf.identity() to assign name
+    y_ = tf.placeholder('float', shape=[None, 10])
+    w = tf.Variable(tf.zeros([784, 10]))
+    b = tf.Variable(tf.zeros([10]))
+    sess.run(tf.initialize_all_variables())
+    y = tf.nn.softmax(tf.matmul(x, w) + b, name='y')
+    cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
+    train_step = tf.train.GradientDescentOptimizer(0.01).minimize(cross_entropy)
+    values, indices = tf.nn.top_k(y, 10)
+    prediction_classes = tf.contrib.lookup.index_to_string(
+        tf.to_int64(indices), mapping=tf.constant([str(i) for i in xrange(10)]))
+    for _ in range(FLAGS.training_iteration):
+        batch = mnist.train.next_batch(50)
+        train_step.run(feed_dict={x: batch[0], y_: batch[1]})
+    correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
+    print
+    'training accuracy %g' % sess.run(
+        accuracy, feed_dict={x: mnist.test.images,
+                             y_: mnist.test.labels})
+    print
+    'Done training!'
 
-    ###################################################################
-    """This is bassically the init."""
-    ###################################################################
+    # Export model
+    # WARNING(break-tutorial-inline-code): The following code snippet is
+    # in-lined in tutorials, please update tutorial documents accordingly
+    # whenever code changes.
+    export_path_base = sys.argv[-1]
+    export_path = os.path.join(
+        compat.as_bytes(export_path_base),
+        compat.as_bytes(str(FLAGS.model_version)))
+    print
+    'Exporting trained model to', export_path
+    builder = saved_model_builder.SavedModelBuilder(export_path)
 
+    # Build the signature_def_map.
+    classification_inputs = utils.build_tensor_info(serialized_tf_example)
+    classification_outputs_classes = utils.build_tensor_info(prediction_classes)
+    classification_outputs_scores = utils.build_tensor_info(values)
+
+    classification_signature = signature_def_utils.build_signature_def(
+        inputs={signature_constants.CLASSIFY_INPUTS: classification_inputs},
+        outputs={
+            signature_constants.CLASSIFY_OUTPUT_CLASSES:
+                classification_outputs_classes,
+            signature_constants.CLASSIFY_OUTPUT_SCORES:
+                classification_outputs_scores
+        },
+        method_name=signature_constants.CLASSIFY_METHOD_NAME)
+
+    tensor_info_x = utils.build_tensor_info(x)
+    tensor_info_y = utils.build_tensor_info(y)
+
+    prediction_signature = signature_def_utils.build_signature_def(
+        inputs={'images': tensor_info_x},
+        outputs={'scores': tensor_info_y},
+        method_name=signature_constants.PREDICT_METHOD_NAME)
+
+    legacy_init_op = tf.group(tf.initialize_all_tables(), name='legacy_init_op')
+    builder.add_meta_graph_and_variables(
+        sess, [tag_constants.SERVING],
+        signature_def_map={
+            'predict_images':
+                prediction_signature,
+            signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
+                classification_signature,
+        },
+        legacy_init_op=legacy_init_op)
+
+    builder.save()
+
+    print
+    'Done exporting!'
+
+
+if __name__ == '__main__':
+    tf.app.run()
+
+
+
+
+
+#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     def build_default_values(self, worker=None):
         """
         This builds out the model from the options for a TF Graph
@@ -92,15 +166,12 @@ class Build_Adv_Network(object):
             else:
                 we have a single computer
         """
-        # with tf.device(tf.train.replica_device_setter(worker_device=worker, cluster=cluster)):
-        # with tf.device(worker):
-
         """Start a Full Graph Scope"""
-        with tf.name_scope('Full_Graph'):
+        with tf.variable_scope('Full_Graph'):
             """ Record Keeping """
             self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0),
                                                trainable=False)
-            with tf.variable_scope("learn_rate"):
+            with tf.name_scope("learn_rate"):
                 self.learn_rate = tf.train.exponential_decay(
                     0.1, self.global_step,
                     1e5, 0.96, staircase=True,
@@ -108,74 +179,58 @@ class Build_Adv_Network(object):
             tf.summary.scalar("learn_rate", self.learn_rate)
 
             """ Do Basic Steps """
-            with tf.variable_scope("input"):
+            with tf.name_scope("input"):
                 self.Input_Tensor_Images = tf.placeholder(tf.float32, [None, self.dataset.height, self.dataset.width,
                                                                        self.dataset.num_channels], name="Input_Tensor")
-                tf.add_to_collection("input", self.Input_Tensor_Images)
                 self.Input_Tensor_Labels = tf.placeholder(tf.float32, [None, self.dataset.num_classes],
                                                           name="Input_Label")
-                tf.add_to_collection("label", self.Input_Tensor_Labels)
                 self.Input_True_Labels = tf.argmax(self.Input_Tensor_Labels, dimension=1)
                 self.x_image = self.Input_Tensor_Images  # current default layer
 
-            with tf.variable_scope("keep_prob"):
+            with tf.name_scope("keep_prob"):
                 self.keep_prob = tf.placeholder(tf.float32, name="Keep_prob")  # new feature goes with the dropout option
-                tf.add_to_collection("keep_prob", self.keep_prob)
+
             """ Do Advanced Steps """
-            with tf.variable_scope("adv_steps"):
+            with tf.name_scope("adv_steps"):
                 self.convlayerNames, self.Conv_layers, self.Conv_weights = self.BUILD_CONV_LAYERS()  ## BUILD LAYERS
                 self.x_image, self.features = self.flatten_layer(self.x_image)  ## SWITCH TO FC LAYERS
                 self.fclayerNames, self.fc_layers = self.BUILD_FC_LAYER(self.options.fc_layers)  # build FC LAYERS
                 # this is used but i dont know what to call it.
 
-        with tf.variable_scope("softmax"):
+        with tf.name_scope("softmax"):
             self.Output_True_Layer = tf.nn.softmax(self.x_image, name="Final_Output")
-            tf.add_to_collection("final_layer", self.Output_True_Layer)
         tf.summary.histogram('activations', self.Output_True_Layer)
 
         """ Variables """
         with tf.name_scope("Training_Methods"):
-            with tf.variable_scope("cross_entropy_softmax"):
+            with tf.name_scope("cross_entropy_softmax"):
                 self.cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.x_image,
                                                                              labels=self.Input_Tensor_Labels)
                 self.entropy_loss = tf.reduce_mean(self.cross_entropy)
             tf.summary.scalar("cross_entropy", self.entropy_loss)
 
-            with tf.variable_scope('Entropy_Optimizer_Train'):
+            with tf.name_scope('Entropy_Optimizer_Train'):
                 self.train_ent_loss = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(self.entropy_loss)
 
-            with tf.variable_scope('train'):
+            with tf.name_scope('train'):
                 self.cost = tf.reduce_mean(tf.square(tf.subtract(self.Input_Tensor_Labels, self.x_image)))
                 training_vars = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()]) * 0.001
                 self.loss = self.cost + training_vars
-                tf.add_to_collection("loss", self.loss)
             tf.summary.scalar("train_cost", self.loss)
-            with tf.variable_scope('Dropout_Optimizer_Train'):
+            with tf.name_scope('Dropout_Optimizer_Train'):
                  self.train_drop_loss = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(self.loss)
-                 tf.add_to_collection("train_op", self.train_drop_loss)
                 # self.train_drop_loss = tf.train.AdagradOptimizer(learning_rate=self.learn_rate).minimize(self.loss)
 
         """ Finishing Steps """
-        with tf.variable_scope("accuracy"):
-            with tf.variable_scope('correct_prediction'):
+        with tf.name_scope("accuracy"):
+            with tf.name_scope('correct_prediction'):
                 self.Output_True_Labels = tf.argmax(self.Output_True_Layer, dimension=1)
                 self.correct_prediction = tf.equal(self.Output_True_Labels, self.Input_True_Labels)
-            with tf.variable_scope('accuracy'):
+            with tf.name_scope('accuracy'):
                 self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
         tf.summary.scalar('accuracy', self.accuracy)
 
         """This is some tricks to push our matplotlib graph inside tensorboard"""
-        # with tf.variable_scope('Matplotlib_Input'):
-        # Matplotlib will give us the image as a string ...
-        #    self.matplotlib_img = tf.placeholder(dtype=tf.string.real_dtype, shape=[])
-        # ... encoded in the PNG format ...
-        #    my_img = tf.image.decode_png(self.matplotlib_img, 4)
-        # ... that we transform into an image summary
-        #    self.img_summary = tf.summary.image(
-        #        'matplotlib_graph'
-        #        , tf.expand_dims(my_img, 0)
-        #    )
-
 
         """ Initialize the session """
         self.init_op = tf.global_variables_initializer()
@@ -206,39 +261,6 @@ class Build_Adv_Network(object):
     ###################################################################
     """These are all impelemented in the above build function"""
     ###################################################################
-    """
-    def build_plotter(self, sess, input_images,):
-        #setup matplotlib output for tensorboard
-        inputs = np.array([ [(i - 1000) / 100] for i in input_images ])
-        y_true_res, y_res = sess.run([y_true, y], feed_dict={ x: inputs
-        })
-        # We plot it using matplotlib
-        # (This is some matplotlib wizardry to get an image as a string,
-        # read the matplotlib documentation for more information)
-        plt.figure(1)
-        plt.subplot(211)
-        plt.plot(inputs, y_true_res.flatten())
-        plt.subplot(212)
-        plt.plot(inputs, y_res)
-        imgdata = io.BytesIO()
-        plt.savefig(imgdata, format='png')
-        imgdata.seek(0)
-        # We push our graph into TensorBoard
-        plot_img_summary = sess.run(img_summary, feed_dict={
-            img_strbuf_plh: imgdata.getvalue()
-        })
-        sw.add_summary(plot_img_summary, i + 1)
-        plt.clf()
-
-
-    #depricated for use in tf.Supervisor
-    def save_graph(self, session, path=None):
-        #Manually save the graph
-        saver = self.saver
-        if path is None:
-            path = self.options.save_path + 'StupidAbritraryFileName'
-        saver.save(sess=session, save_path=path)
-    """
 
     def BUILD_CONV_LAYERS(self):
         """

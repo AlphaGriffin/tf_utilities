@@ -16,7 +16,7 @@ class mupenDataset(object):
     (2) make a kickass human readable printout for .rst and console
         
     """
-    def __init__(self, imgs, labels, options=None):
+    def __init__(self, options, imgs=False, labels=False):
         self.name                  = 'MUPEN64+'  
         self.options               = options    
         self.imgs                  = imgs    # full path passed in
@@ -38,7 +38,8 @@ class mupenDataset(object):
         self.trainer = self
         
         # startup
-        self.build_return()
+        if imgs:
+            self.build_return()
         
     def build_return(self):
         """ This opens the files and does the label argmax for you"""

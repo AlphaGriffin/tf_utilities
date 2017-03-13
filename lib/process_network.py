@@ -72,31 +72,38 @@ class procNet(object):
                 # get a batch from the dataset
                 batch = self.dataset.next_batch(self.options.batch_size)
                 print("# Get a sample batch:")
-                Sample_img = batch[0][1]
-                Sample_label = batch[1][1]
+                # Sample_img = batch[0][1]
+                # Sample_label = batch[1][1]
                 # print("# Display Sample Image:")
                 # print("Image:\n{}".format(self.show_img(Sample_img)))
                 # print("Label:\n{}".format(Sample_label))
                 # build the feed dict...
-                feed_dict = {self.network.Input_Tensor_Images: batch[0],
-                             self.network.Input_Tensor_Labels: batch[1],
-                             self.network.keep_prob: 0.8}
-                # Don't do this
-                # print("# feed dict:\n{}".format(feed_dict))
+                if len(batch[0]) is len(batch[0]):
+                    feed_dict = {self.network.Input_Tensor_Images: batch[0],
+                                 self.network.Input_Tensor_Labels: batch[1],
+                                 self.network.keep_prob: 0.8}
+                    # Don't do this
+                    # print("# feed dict:\n{}".format(feed_dict))
+                    _, current_step, summary, loss = sess.run([self.network.train_drop_loss,
+                                                               self.network.global_step,
+                                                               self.network.merged,
+                                                               self.network.train_drop_loss,
+                                                               ], feed_dict)
+                    train_writer.add_summary(summary, i)
+                    print("Current Step: {}\nLoss: {}".format(current_step, loss))
 
-                current_step = sess.run(self.network.global_step, feed_dict)
-                print("Current Step: {}".format(current_step))
-
-
-            # final steps
-            # write out the graph def protobuf... thingamajiger
-            tf.train.write_graph(sess.graph_def, self.options.logDir, 'Alpha.griffin.pbtxt')
+            print("finished training")
+            saver.export_meta_graph(os.path.join(self.options.logDir, "filname.meta"))
+            print("saved metagraph")
+            tf.train.write_graph(sess.graph_def, self.options.logDir, 'meta')
             print("Wrote Graph to {}alphagriffin.pbtxt".format(self.options.logDir))
             # save final usable model
-            saver.save(sess, self.options.logDir + "/Alpha", latest_filename="alpha", meta_graph_suffix="griffin",write_meta_graph=True, write_state=True)  # , global_step=self.network.global_step)
+            saver.save(sess, os.path.join(self.options.logDir, "Alpha"))
+            print("saved final")
+            # saver.save(sess, self.options.logDir + "/Alpha", latest_filename="alpha", meta_graph_suffix="griffin",write_meta_graph=True, write_state=True)  # , global_step=self.network.global_step)
+
         print("finished easy_mode setup test")
         return True
-
 
     def run_network(self, iters=10, keep_prob=0.8):
         """

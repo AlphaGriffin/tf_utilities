@@ -38,6 +38,21 @@ function checkConnectivity() {
 	return 0
 }
 
+# Takes 1 arguement as DIR for this git_update
+function git_update() {
+    if git status | grep -q up-to-date; then
+			echo "Repo: $1 is up to date"
+    else
+        # if pulled latest
+        if git pull | grep -q Already; then
+            echo "Repo: $1 has been updated"
+        else
+            # if we are failing at this...
+            echo "failed to pull new Repo for $1"
+        fi
+	fi
+
+}
 function grep_status() {
 	for i in $( ls -d */); do
 		# go into dir
@@ -60,83 +75,112 @@ function grep_status() {
 
 function show_header() {
 	clear
-	figlet "Tensorflow" "    Utilities"
+	figlet "tf_utilities"
 	echo "-----------------------------------------------------"
 	echo "Date: $TODAY"
 	echo "Host: $USER@$HOST"
 	echo "-----------------------------------------------------"
 }
 
-function different_options() {
-	all_done=0
-	while (( !all_done )); do
-			clear;
-			show_header;
-			options=("Check Connectivity" "Show Header")
-
-			echo "Choose an option:"
-			select opt in "${options[@]}"; do
-					case $REPLY in
-							1) checkConnectivity; break ;;
-							2) show_header; break ;;
-							*) echo "What's that?" ;;
-					esac
-			done
-
-			echo "Doing other things...";
-
-			echo "Are we done?"
-			select opt in "Yes" "No"; do
-					case $REPLY in
-							1) all_done=1; break ;;
-							2) break ;;
-							*) echo "Look, it's a simple question..." ;;
-					esac
-			done
-	done
-	
+function start_tensorboard() {
+    tensorboard --logdir $PWD/train_logs --reload_interval 25 &
+    #local BUFFER=$?
+	#printResult $BUFFER
+    #return X
 }
 
+# takes one arguement to kill the process
+function stop_tensorboard() {
+    kill $1
+    local BUFFER=$?
+	printResult $BUFFER
+}
 
 function options_screen() {
 	# a Space Sperated List of Options that will be given
-	OPTIONS="Check_Folders checkConnectivity run_MupenTest About Quit";
-	select opt in $OPTIONS; do
-		if [ "$opt" = "Check_Folders" ]; then
-			# grep_status
-			clear;
-			figlet "Check Git status";
-		
-		elif [ "$opt" = "checkConnectivity" ]; then
-			clear;
-			figlet "Check Connectivity";
-			echo "AlphaGriffin.com online: $(checkConnectivity;)"
-		
-		elif [ "$opt" = "About" ]; then
-			sl -Fec;
-			clear;
-			figlet """Alphagriffin.com""";
-		
-		elif [ "$opt" = "run_MupenTest" ]; then
-			sl -Fec;
-			clear;
-			figlet "Mupen Test";
-			python mupentest.py
-		
-		elif [ "$opt" = "Quit" ]; then
-			figlet "done";
-			exit;
-		
-		else
-			clear;
-			show_header;
-			figlet "bad option";
-		fi
-	done;
+	options=("Git Update" "Check Connectivity" "Run Mupen Test" "Start Tensorbaord" "Stop Tensorbaord" "Show Log" "About" "Quit")
+
+	# global variables
+	all_done=0
+	on_exit=0
+	tensorboard_pid=0
+
+	while (( !all_done )); do
+	    while (( !on_exit )); do
+            clear;
+            show_header;
+            # select opt in $OPTIONS; do
+            select opt in "${options[@]}"; do
+                if [ "$opt" = "Git Update" ]; then
+                    # grep_status
+                    clear;
+                    figlet "Check Git status";
+                    git_update $PWD;
+                    break;
+
+                elif [ "$opt" = "Check Connectivity" ]; then
+                    # use this to check if a webpage is up
+                    clear;
+                    figlet "Check Connectivity";
+                    echo "AlphaGriffin.com online: $(checkConnectivity;)"
+                    break;
+
+                elif [ "$opt" = "Show Log" ]; then
+                    # tail the log
+                    clear;
+                    figlet "Show Log";
+                    tail -n 3 $PWD/tensorflow.log;
+                    break;
+
+                elif [ "$opt" = "Start Tensorbaord" ]; then
+                    # start the tensorboard program
+                    clear;
+                    figlet "Tensorboard";
+                    stop_tensorboard $tensorboard_pid
+                    echo "Tensorboard started properly"
+                    break;
+
+                elif [ "$opt" = "Stop Tensorbaord" ]; then
+                    clear;
+                    figlet "Tensorboard";
+                    tensorboard_pid= start_tensorboard &
+                    echo "Tensorboard started properly"
+                    break;
+
+                elif [ "$opt" = "Run Mupen Test" ]; then
+                    clear;
+                    figlet "Mupen Test";
+                    python mupentest.py;
+                    break;
+
+                elif [ "$opt" = "About" ]; then
+                    clear;
+                    figlet """Alphagriffin.com""";
+                    break;
+
+                elif [ "$opt" = "Quit" ]; then
+                    figlet "done?";
+                    on_exit=1
+                    break;
+
+                else
+                    figlet "bad option";
+                fi
+            done
+        done
+
+        show_header;
+        echo "Are you really done?"
+        select opt in "Yes" "No"; do
+                case $REPLY in
+                        1) all_done=1; break ;;
+                        2) break ;;
+                        *) echo "Look, it's a simple question..." ;;
+                esac
+        done
+    done
 }
 
 # This is the program Launch Begining
 show_header
-#sl
-#options_screen
 options_screen
