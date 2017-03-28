@@ -10,7 +10,7 @@
 /hiddenStuff
 /train_logs
 /train_logs_2
-*.tfrecords
+.tfrecords
 
 # HG Stuff
 .hg/

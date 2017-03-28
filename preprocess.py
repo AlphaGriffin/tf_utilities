@@ -66,6 +66,8 @@ class mupenDataset(object):
         # startup
         if imgs:
             self.build_return()
+            if make_records:
+                self.make_records()
 
     def build_return(self):
         """ This opens the files and does the label argmax for you"""
@@ -142,36 +144,28 @@ class mupenDataset(object):
     def _int64_feature(self, value):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-    def tf_record(self, imgs, labels):
+    def tf_record_save(self):
         imgs = self._all_images_
         labels = self._all_labels_
-
         tfrecords_filename = 'mupen64plus.tfrecords'
+        with tf.python_io.TFRecordWriter(tfrecords_filename) as writer:
+            for img, label in (imgs, labels):
+                h = img.shape[0]
+                w = img.shape[1]
 
-        writer = tf.python_io.TFRecordWriter(tfrecords_filename)
+                img_raw = img.tostring()
+                annotation_raw = label.tostring()
 
-        for img, label in (imgs, labels):
-            h = img.shape[0]
-            w = img.shape[1]
+                example = tf.train.Example(features=tf.train.Features(feature={
+                    'height': self._int64_feature(h),
+                    'width': self._int64_feature(w),
+                    'image_raw': self._bytes_feature(img_raw),
+                    'mask_raw': self._bytes_feature(annotation_raw)}))
 
-            img_raw = img.tostring()
-            annotation_raw = label.tostring()
+                writer.write(example.SerializeToString())
+        print("Saved Records were created.")
 
-            example = tf.train.Example(features=tf.train.Features(feature={
-                'height': self._int64_feature(h),
-                'width': self._int64_feature(w),
-                'image_raw': self._bytes_feature(img_raw),
-                'mask_raw': self._bytes_feature(annotation_raw)}))
-
-            writer.write(example.SerializeToString())
-
-        writer.close()
-
-        for original_pair, reconstructed_pair in zip(original_images, reconstructed_images):
-            img_pair_to_compare, annotation_pair_to_compare = zip(original_pair,
-                                                                  reconstructed_pair)
-            print(np.allclose(*img_pair_to_compare))
-            print(np.allclose(*annotation_pair_to_compare))
+    def tf_record_load(self, path): pass
 
 
 

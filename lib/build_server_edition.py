@@ -69,6 +69,7 @@ def main(_):
     feature_configs = {'x': tf.FixedLenFeature(shape=[784], dtype=tf.float32), }
 
     tf_example = tf.parse_example(serialized_tf_example, feature_configs)
+    global_step = tf.Variable(0, name='global_step', trainable=False, collections=[global_step])
     x = tf.identity(tf_example['x'], name='x')  # use tf.identity() to assign name
     y_ = tf.placeholder('float', shape=[None, 10])
     w = tf.Variable(tf.zeros([784, 10]))
@@ -76,7 +77,7 @@ def main(_):
     sess.run(tf.initialize_all_variables())
     y = tf.nn.softmax(tf.matmul(x, w) + b, name='y')
     cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
-    train_step = tf.train.GradientDescentOptimizer(0.01).minimize(cross_entropy)
+    train_step = tf.train.GradientDescentOptimizer(0.01).minimize(cross_entropy, global_step=global_step)
     values, indices = tf.nn.top_k(y, 10)
     prediction_classes = tf.contrib.lookup.index_to_string(
         tf.to_int64(indices), mapping=tf.constant([str(i) for i in xrange(10)]))

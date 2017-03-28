@@ -3,14 +3,14 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import time
-from datetime import timedelta
-from sklearn.metrics import confusion_matrix
+# from datetime import timedelta
+# from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 import numpy as np
 import matplotlib
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 working_dir = os.path.dirname(os.path.realpath(__file__))
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 
 """
 DESCRIPTION:
@@ -34,6 +34,7 @@ class procNet(object):
         self.options = network.options
 
     def show_img(self, img):
+        """trys to represent your img as ascii... lols"""
         GCF = 2
         chars = np.asarray(list(' .,:;irsXA253hMHGS#9B&@'))
         img = np.sum(img, axis=2)
@@ -71,7 +72,7 @@ class procNet(object):
                 print("# Starting Training Iteration: {} of {}".format(i+1, iters))
                 # get a batch from the dataset
                 batch = self.dataset.next_batch(self.options.batch_size)
-                print("# Get a sample batch:")
+                # print("# Get a sample batch:")
                 # Sample_img = batch[0][1]
                 # Sample_label = batch[1][1]
                 # print("# Display Sample Image:")
@@ -84,19 +85,20 @@ class procNet(object):
                                  self.network.keep_prob: 0.8}
                     # Don't do this
                     # print("# feed dict:\n{}".format(feed_dict))
-                    _, current_step, summary, loss = sess.run([self.network.train_drop_loss,
-                                                               self.network.global_step,
-                                                               self.network.merged,
-                                                               self.network.train_drop_loss,
-                                                               ], feed_dict)
+                    _, current_step, summary, loss, learn = sess.run([self.network.train_drop_loss,
+                                                                      self.network.global_step,
+                                                                      self.network.merged,
+                                                                      self.network.train_drop_loss,
+                                                                      self.network.learn_rate,
+                                                                      ], feed_dict)
                     train_writer.add_summary(summary, i)
-                    print("Current Step: {}\nLoss: {}".format(current_step, loss))
+                    print("\t-Current Step: {}\n\t-Loss: {}\n\t-Learn rate: {}".format(current_step, loss, learn))
 
             print("finished training")
-            saver.export_meta_graph(os.path.join(self.options.logDir, "filname.meta"))
-            print("saved metagraph")
+            # saver.export_meta_graph(os.path.join(self.options.logDir, "filname.meta"))
+            # print("saved metagraph")
             tf.train.write_graph(sess.graph_def, self.options.logDir, 'meta')
-            print("Wrote Graph to {}alphagriffin.pbtxt".format(self.options.logDir))
+            print("Wrote Graph to {}/alphagriffin.pbtxt".format(self.options.logDir))
             # save final usable model
             saver.save(sess, os.path.join(self.options.logDir, "Alpha"))
             print("saved final")

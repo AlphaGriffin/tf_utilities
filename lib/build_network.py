@@ -32,8 +32,9 @@ Target for master push
     * produce a Tensorboard output with a guide for setup
 """
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 import tensorflow as tf
+import skimage.io as io
 from datetime import timedelta
 # import numpy as np # SEEDS DAMNIT!
 import time
@@ -41,8 +42,28 @@ from tqdm import tqdm
 # import matplotlib
 # matplotlib.use('Agg')
 # import matplotlib.pyplot as plt
+# % matplotlib inline
 
 """!!!DEV BUILD IN PROGRESS!!!"""
+
+class Network(object):
+    def __init__(self, network):
+        self.network = network
+        pass
+
+    def build_vars(self):
+        pass
+
+    def build_layers(self): pass
+
+    def training_op(self, loss, lr):
+        tf.summary.scalar('loss', loss)
+        optimizer = tf.train.AdagradOptimizer(learning_rate)
+        global_step = tf.Variable(0, name='global_step', trainable=False, collections=[global_step])
+        train_op = optimizer.minimize(loss, global_step=global_step)
+        return train_op
+
+
 
 
 class Build_Adv_Network(object):
@@ -103,8 +124,9 @@ class Build_Adv_Network(object):
             with tf.variable_scope("learn_rate"):
                 self.learn_rate = tf.train.exponential_decay(
                     0.1, self.global_step,
-                    1e5, 0.96, staircase=True,
+                    self.options.learning_rate, 0.87, staircase=True,
                     name="Learn_decay")
+            tf.add_to_collection("learn_rate", self.learn_rate)
             tf.summary.scalar("learn_rate", self.learn_rate)
 
             """ Do Basic Steps """
@@ -142,7 +164,7 @@ class Build_Adv_Network(object):
             tf.summary.scalar("cross_entropy", self.entropy_loss)
 
             with tf.variable_scope('Entropy_Optimizer_Train'):
-                self.train_ent_loss = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(self.entropy_loss)
+                self.train_ent_loss = tf.train.AdamOptimizer(learning_rate=self.learn_rate).minimize(self.entropy_loss, global_step=self.global_step)
 
             with tf.variable_scope('train'):
                 self.cost = tf.reduce_mean(tf.square(tf.subtract(self.Input_Tensor_Labels, self.x_image)))
@@ -350,11 +372,11 @@ class Build_Adv_Network(object):
 
     def new_weights(self, shape):
         """This generates a new weight for each layer"""
-        return tf.Variable(tf.truncated_normal(shape, stddev=0.05), name="weight")
+        return tf.Variable(tf.truncated_normal(shape, stddev=0.1), name="weight")
 
     def new_biases(self, length):
         """This generates a new bias for each layer"""
-        return tf.Variable(tf.constant(0.05, shape=[length]), name="bias")
+        return tf.Variable(tf.constant(0.1, shape=[length]), name="bias")
 
     def new_conv_layer(self, input, filter_size, chan, num_filters, use_pooling=True):
         """

@@ -83,12 +83,10 @@ class Prepare(object):
         
         Example
         -------
-        >>> X = ["/path/","/path/","/path"] # go big or go home...
-        >>> X_images_load, Y_labels_load = Prepare.processing(X,
-                                                              makeBW=True, 
-                                                              save=False)
+        >>> X = ["/path/","/path/","/path"]
+        >>> X_images_load, Y_labels_load = Prepare.processing(X, makeBW=False, save=False)
         """
-        
+        """
         if folders is "": 
             folders = self.selection
         saveDir = os.path.join(self.root_dir, "datasets", self.currentGame)
@@ -101,7 +99,7 @@ class Prepare(object):
                                             self.currentGame,datasetIndex)
         datasetFilename_y = "_{}_dataset_{}_label.npy".format(
                                             self.currentGame,datasetIndex)
-        
+        """
         # for each folder given...
         for i in folders:
             current_path = os.path.join(self.work_dir,self.currentGame,i)

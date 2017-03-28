@@ -51,12 +51,14 @@ class options(object):
                  f_size=5,
                  fc_size=128,
                  save_path="/home/eric/repos/pycharm_repos/tf_utilities/models/",
-                 logdir="/home/eric/repos/pycharm_repos/tf_utilities/models/"
+                 logdir="/home/eric/repos/pycharm_repos/tf_utilities/models/",
+                 save_dataset=True,
                  ):
 
         self.verbose = verbose
         
         # learning rate has been DEPRICATED
+        # brought it back
         self.learning_rate = learning_rate
         self.batch_size = batch_size
 
@@ -67,6 +69,9 @@ class options(object):
         self.fc_size = fc_size          # Max # of elements in FC flatened layers
         self.save_path = save_path
         self.logDir = logdir
+
+        # saves the input dataset to the logdir as a tf_record
+        self.save_dataset = save_dataset
         
         # Mupen64plus stuff
         #self.save_path = "/home/eric/.local/share/mupen64plus/model/mariokart64/"

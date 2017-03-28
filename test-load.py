@@ -40,7 +40,6 @@ def prepare_image(img, makeBW=False):
     return numpy_img
 
 
-
 def classify(img, path):
     with tf.Session() as sess:
         print("restored graph in {}".format(path))
@@ -55,9 +54,20 @@ def classify(img, path):
         return classification
 
 
-
 os.system("clear")
 print("Starting Evaluation")
+"""
+INPUTDATA_IMG = "/home/eric/.local/share/mupen64plus/datasets/mariokart64/_mariokart64_dataset_20_image.npy"
+INPUTDATA_LABEL = "/home/eric/.local/share/mupen64plus/datasets/mariokart64/_mariokart64_dataset_20_label.npy"
+
+
+CONFIG = opts.options(verbose=False)
+DATASET = data.mupenDataset(CONFIG, INPUTDATA_IMG, INPUTDATA_LABEL)
+DATASET.tf_record()
+
+if os.path.isfile("./*.tfrecords"):
+    print("GOT IT!!!!!")
+"""
 img = "/home/eric/.local/share/mupen64plus/screenshot/test.png"
 path = os.path.join(os.getcwd(), "models", "log_27")
 label = classify(img, path)
