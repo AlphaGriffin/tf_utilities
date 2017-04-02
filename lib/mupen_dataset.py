@@ -363,7 +363,7 @@ class mupenDataset(object):
             serialized_example,
             # Defaults are not specified since both keys are required.
             features={
-                'height': _int64_feature([], tf.int64),
+                'height': tf.FixedLenFeature([], tf.int64),
                 'width': tf.FixedLenFeature([], tf.int64),
                 'channels': tf.FixedLenFeature([], tf.int64),
                 'actions': tf.FixedLenFeature([], tf.int64),
@@ -372,13 +372,24 @@ class mupenDataset(object):
             })
 
         images = tf.decode_raw(features['image_data'], tf.uint8)
+
         labels = tf.decode_raw(features['label_data'], tf.uint8)
+
         print("loading files -\n\t{}\n\t{}".format(images, labels))
+
         height = tf.cast(features['height'], tf.int32)
         width = tf.cast(features['width'], tf.int32)
         channels = tf.cast(features['channels'], tf.int32)
         actions = tf.cast(features['actions'], tf.int32)
         print("Fount features:\n\th: {}, w: {}, c:{}, l:{}".format(height, width, channels, actions))
+
+
+        image = tf.reshape(image, [width, height, channels])
+        image = tf.cast(image, tf.float32)
+
+
+
+
         image_shape = tf.stack([height, width, channels])
         label_shape = tf.stack([actions, 1])
         print("Preshapeing: images: {}, labels: {}".format(image_shape, label_shape))

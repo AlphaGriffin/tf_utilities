@@ -20,11 +20,6 @@ import ag.logging as log
 from PIL import Image
 import numpy as np
 import tensorflow as tf
-
-# !/usr/bin/python3
-"""
-Ruckusist @ alphagriffin.com
-"""
 import numpy as np
 
 
@@ -144,26 +139,27 @@ class mupenDataset(object):
     def _int64_feature(self, value):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-    def tf_record_save(self):
-        imgs = self._all_images_
-        labels = self._all_labels_
+    def tf_record_save(self, imgs, labels):
         tfrecords_filename = 'mupen64plus.tfrecords'
-        with tf.python_io.TFRecordWriter(tfrecords_filename) as writer:
-            for img, label in (imgs, labels):
-                h = img.shape[0]
-                w = img.shape[1]
+        try:
+            with tf.python_io.TFRecordWriter(tfrecords_filename) as writer:
+                for img, label in (imgs, labels):
+                    h = img.shape[0]
+                    w = img.shape[1]
 
-                img_raw = img.tostring()
-                annotation_raw = label.tostring()
+                    img_raw = img.tostring()
+                    label_ = label.tostring()
 
-                example = tf.train.Example(features=tf.train.Features(feature={
-                    'height': self._int64_feature(h),
-                    'width': self._int64_feature(w),
-                    'image_raw': self._bytes_feature(img_raw),
-                    'mask_raw': self._bytes_feature(annotation_raw)}))
+                    example = tf.train.Example(features=tf.train.Features(feature={
+                        'height': self._int64_feature(h),
+                        'width': self._int64_feature(w),
+                        'image_data': self._bytes_feature(img_raw),
+                        'label': self._bytes_feature(label_)}))
 
-                writer.write(example.SerializeToString())
-        print("Saved Records were created.")
+                    writer.write(example.SerializeToString())
+            print("Saved Records were created.")
+        except Exception as e:
+            print("Failing to write: {}\n Reason:\n{}".format(tfrecords_filename, e))
 
     def tf_record_load(self, path): pass
 
