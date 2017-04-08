@@ -64,8 +64,6 @@ class Network(object):
         return train_op
 
 
-
-
 class Build_Adv_Network(object):
     """
     Dynamically create a Tensorflow Network from the given Input Options.
