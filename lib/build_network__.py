@@ -23,7 +23,7 @@ import os
 import ag.logging as log
 import tensorflow as tf
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
 working_path = os.getcwd()
 
 
@@ -34,12 +34,6 @@ class BuildModel(object):
         self.num_outputs = outputs
 
     def build_conv_layers(self, x_image, layers, f_size=5):
-        """
-        Magically construct many Convolutional layers for a Neural Network.
-        :return:
-            An unused list of all the layers_names, weights and biases for each layer. these are added to tensorboard
-            automatically.
-        """
         start_shape = x_image
         log.debug("Start shape= {}".format(start_shape))
         reducing_shape = 0
@@ -72,14 +66,7 @@ class BuildModel(object):
         log.info("Finished Building {} Conv Layers\nMoving To Flattening...".format(layers))
         return reducing_shape, last_num_f
 
-    def build_fc_layers(self, x_image, num_fc, num_final):
-        """
-        Magically create a huge number of Fully connected layers.
-        :param layers:
-            Number of FC layers to create.
-        :return:
-            returns a human readable non used list of the layer names. These are added to tensorboard automatically.
-        """
+    def build_fc_layers(self, x_image, num_fc, num_final, keep_prob):
         log.info("Building {} Fully Connected Layers".format(num_fc))
         # first time thru options
         inputs = 0
@@ -104,26 +91,29 @@ class BuildModel(object):
             current_layer, w, b = self.new_fc_layer(input_=current_layer,
                                                     num_inputs=inputs,
                                                     num_outputs=features,
-                                                    #keep_prob=keep_prob,
+                                                    keep_prob=keep_prob,
                                                     use_relu=use_reLu,
-                                                    use_drop=use_Drop)
+                                                    use_drop=use_Drop
+                                                    )
 
             layer_name = "fullyLayer_{}".format(layer)
             with tf.name_scope(layer_name):
                 with tf.name_scope("weights"):
                     tf.summary.histogram("weights", w)
+                    tf.add_to_collection('weights_{}'.format(layer), w)
                 with tf.name_scope("biases"):
                     tf.summary.histogram('biases', b)
+                    tf.add_to_collection('biases_{}'.format(layer), b)
         return current_layer  # final layer
 
-    def new_fc_layer(self, input_, num_inputs, num_outputs, use_relu=True, use_drop=False):
+    def new_fc_layer(self, input_, num_inputs, num_outputs, keep_prob, use_relu=True, use_drop=False):
         weights = self.new_weights(shape=[num_inputs, num_outputs])  # set weights
         biases = self.new_biases(length=num_outputs)  # set number of OUTPUTS like give me top k or whatever...
         layer = tf.matmul(input_, weights) + biases  # this is a #BIGMATH func
         if use_relu:
             layer = tf.nn.relu(layer)
         if use_drop:
-            layer = tf.nn.dropout(layer, self.keep_prob)
+            layer = tf.nn.dropout(layer, keep_prob)
         return layer, weights, biases
 
     def new_weights(self, shape):
@@ -132,7 +122,7 @@ class BuildModel(object):
 
     def new_biases(self, length):
         """This generates a new bias for each layer"""
-        return tf.Variable(tf.constant(0.1, shape=[length]), name="bias", collections=["biases"])
+        return tf.Variable(tf.constant(0.1, shape=[length]), collections=["biases"])
 
     def new_conv_layer(self, input, filter_size, chan, num_filters, use_pooling=False):
         X_shape = [filter_size, filter_size, chan, num_filters]
@@ -154,11 +144,12 @@ class BuildModel(object):
         log.debug("Finished Building a conv Layer:\n\t{}".format(layer))
         return layer, weights, biases
 
-    def flatten_layer(self, layer):
-        log.info("Tranitioning from Conv to fc layers")
-        layer_shape = layer.get_shape()  # ASSERT layer_shape == [num_images, img_height, img_width, num_channels]
-        num_features = layer_shape[1:4].num_elements()  # like a boss...
-        log.debug("Shape: {}, Features: {}".format(layer_shape, num_features))
+    def flatten_layer(self, layer, num_features):
+        log.info("Tranitioning from Conv to fc layers... {}".format(num_features))
+        #layer_shape = layer.get_shape()  # ASSERT layer_shape == [num_images, img_height, img_width, num_channels]
+        #num_features = layer_shape[1:4].num_elements()  # like a boss...
+        num_features = num_features * 2 # do something cooler here... think gaussianly...
+        # log.debug("Shape: {}, Features: {}".format(layer_shape, num_features))
         layer_flat = tf.reshape(layer, [-1, num_features])  # yep...
         log.info("Finished Flattening Layers")
         return layer_flat, num_features
@@ -179,66 +170,68 @@ class BuildModel(object):
                                                              dataset_c])
             Input_Tensor_Labels = tf.placeholder(tf.float32, [None,
                                                               dataset_classes])
-            self.keep_prob = tf.placeholder(tf.float32, name="Keep_prob")
+            keep_prob = tf.placeholder(tf.float32, name="Keep_prob")
         tf.add_to_collection('global_step', global_step)
         tf.add_to_collection('learn_rate', learn_rate)
         tf.add_to_collection('input_tensor', Input_Tensor_Image)
         tf.add_to_collection('label_tensor', Input_Tensor_Labels)
-        tf.add_to_collection('keep_prob', self.keep_prob)
-        return Input_Tensor_Image, Input_Tensor_Labels, learn_rate, self.keep_prob
+        tf.add_to_collection('keep_prob', keep_prob)
+        return Input_Tensor_Image, Input_Tensor_Labels, learn_rate, keep_prob
 
-    def build_outputs(self, x_image, num_conv, num_fc, num_outputs):
+    def build_outputs(self, x_image, num_conv, num_fc, num_outputs, keep_prob):
         with tf.variable_scope("conv_layers"):
             x_image, num_features = self.build_conv_layers(x_image, num_conv)
         with tf.variable_scope("Flat_layer"):
-            x_image, features = self.flatten_layer(x_image)
+            x_image, features = self.flatten_layer(x_image, num_features)
         with tf.variable_scope("FC_layers"):
-            final_layer = self.build_fc_layers(x_image, num_fc,
-                                               num_final=num_outputs
-                                               #keep_prob=keep_prob
+            final_layer = self.build_fc_layers(x_image,
+                                               num_fc,
+                                               num_final=num_outputs,
+                                               keep_prob=keep_prob
                                                )
         return final_layer
 
-    def training_method(self, x_image, input_tensor, learn_rate):
+    def training_method(self, x_image, input_label, learn_rate):
         print("new test")
         with tf.variable_scope("mupen_method"):
-            cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
+            cost = tf.reduce_mean(tf.square(tf.subtract(input_label, x_image)))
             train_vars = tf.trainable_variables()
             loss = cost + \
                    tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * \
                    0.001
-            # loss = cost + training_vars
+            train = tf.train.AdamOptimizer(1e-5).minimize(loss)
+
         tf.add_to_collection("loss", loss)
-        tf.summary.scalar("train_cost", loss)
+        tf.summary.scalar("loss", loss)
+        tf.add_to_collection("train", train)
+        return train, loss, cost
 
-        """
-        with tf.variable_scope("sophmax"):
-            sophmax = tf.nn.softmax(x_image, name="sophmax")
-        tf.add_to_collection("sophmax_layer", sophmax)
+    """
+    with tf.variable_scope("sophmax"):
+        sophmax = tf.nn.softmax(x_image, name="sophmax")
+    tf.add_to_collection("sophmax_layer", sophmax)
 
-        with tf.variable_scope("mupen_method"):
-            cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
-            train_vars = tf.trainable_variables()
-            loss = cost + \
-                   tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * \
-                   0.001
-            # loss = cost + training_vars
-        tf.add_to_collection("loss", loss)
-        tf.summary.scalar("train_cost", loss);
+    with tf.variable_scope("mupen_method"):
+        cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
+        train_vars = tf.trainable_variables()
+        loss = cost + \
+               tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * \
+               0.001
+        # loss = cost + training_vars
+    tf.add_to_collection("loss", loss)
+    tf.summary.scalar("train_cost", loss);
 
-        #with tf.variable_scope("mupen_method"):
-        #    cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
-        #    training_vars = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()]) * 0.001
-        #    loss = cost + training_vars
-        #tf.add_to_collection("loss", loss)
+    #with tf.variable_scope("mupen_method"):
+    #    cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
+    #    training_vars = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()]) * 0.001
+    #    loss = cost + training_vars
+    #tf.add_to_collection("loss", loss)
 
-        with tf.variable_scope('Dropout_Optimizer_Train'):
-            train_drop_loss = tf.train.AdamOptimizer(learn_rate).minimize(loss)
-        tf.add_to_collection("train_op", train_drop_loss)
-        return train_drop_loss, loss, sophmax
-        """
-
-
+    with tf.variable_scope('Dropout_Optimizer_Train'):
+        train_drop_loss = tf.train.AdamOptimizer(learn_rate).minimize(loss)
+    tf.add_to_collection("train_op", train_drop_loss)
+    return train_drop_loss, loss, sophmax
+    """
     """
     def find_devices(self, ):
         # do a known port scan for TF services
@@ -259,6 +252,8 @@ class BuildModel(object):
 
         return local_workers, local_gpus
 
+    """
+    """
     def build_graph(self, num_conv, num_fc, num_outputs):
         # check the enviorment...
         workers, gpus = find_devices()
@@ -289,4 +284,3 @@ class BuildModel(object):
                         init_op = tf.global_variables_initializer
                         merged = tf.summary.merge_all
     """
-
