@@ -19,7 +19,6 @@ __status__ = "Prototype"
 print("Alpha Griffin TF_Curses Project")
 
 import os
-
 import ag.logging as log
 import tensorflow as tf
 
@@ -32,8 +31,11 @@ class BuildModel(object):
         self.num_conv = conv
         self.num_fc = fc
         self.num_outputs = outputs
+        class Ops(): pass
+        self.ops = Ops()
 
     def build_conv_layers(self, x_image, layers, f_size=5):
+
         start_shape = x_image
         log.debug("Start shape= {}".format(start_shape))
         reducing_shape = 0
@@ -59,8 +61,15 @@ class BuildModel(object):
                                                        )
             layer_name = "convLayer_%s" % layer
             log.debug("Finishing Layer {}\n\t{}".format(layer_name, debugs))
-            tf.summary.histogram("weights{}".format(layer), w)
-            tf.summary.histogram("biases{}".format(layer), b)
+            with tf.name_scope(layer_name):
+                with tf.name_scope("conv_weights"):
+                    tf.add_to_collection('weights', w)
+                    tf.summary.histogram("conv_weights_{}".format(layer), w)
+                    setattr(self, "conv_weights_{}".format(layer), w)
+                with tf.name_scope("conv_biases"):
+                    tf.add_to_collection('biases', b)
+                    tf.summary.histogram("conv_biases_{}".format(layer), b)
+                    setattr(self, "conv_biases_{}".format(layer), b)
             log.info("Finished Layer {}\n\t{}".format(layer_name, debugs))
 
         log.info("Finished Building {} Conv Layers\nMoving To Flattening...".format(layers))
@@ -98,12 +107,14 @@ class BuildModel(object):
 
             layer_name = "fullyLayer_{}".format(layer)
             with tf.name_scope(layer_name):
-                with tf.name_scope("weights"):
-                    tf.summary.histogram("weights", w)
-                    tf.add_to_collection('weights_{}'.format(layer), w)
-                with tf.name_scope("biases"):
-                    tf.summary.histogram('biases', b)
-                    tf.add_to_collection('biases_{}'.format(layer), b)
+                with tf.name_scope("fc_weights"):
+                    tf.summary.histogram("fc_weights_{}".format(layer), w)
+                    tf.add_to_collection('weights', w)
+                    setattr(self, "fc_weights_{}".format(layer), w)
+                with tf.name_scope("fc_biases"):
+                    tf.summary.histogram("fc_biases_{}".format(layer), b)
+                    tf.add_to_collection('biases', b)
+                    setattr(self, "fc_biases_{}".format(layer), b)
         return current_layer  # final layer
 
     def new_fc_layer(self, input_, num_inputs, num_outputs, keep_prob, use_relu=True, use_drop=False):
@@ -129,18 +140,18 @@ class BuildModel(object):
         weights = self.new_weights(shape=X_shape)
         biases = self.new_biases(length=num_filters)
         """ THis is the MAGIC again... """
-        layer = tf.nn.conv2d(input=input,  # This is the output of the last layer
-                             filter=weights,  # this is a thing
+        layer = tf.nn.conv2d(input=input,           # This is the output of the last layer
+                             filter=weights,        # this is a thing
                              strides=[1, 1, 1, 1],  # 1111 is NOT pooled MAX work
-                             padding='SAME')  # input output transformation
+                             padding='SAME')        # input output transformation
         layer += biases  # Add biases
         if use_pooling:  # this skips pixels... saves time but skips things obviously
             log.debug("using pooling")
-            layer = tf.nn.max_pool(value=layer,  # take the weights and bias together as an input
-                                   ksize=[1, 2, 2, 1],  # stuff
+            layer = tf.nn.max_pool(value=layer,           # take the weights and bias together as an input
+                                   ksize=[1, 2, 2, 1],    # stuff
                                    strides=[1, 2, 2, 1],  # 2 x 2 stride... could increase... check
-                                   padding='SAME')  # i feel like this should already be in variable, but w/e
-        layer = tf.nn.relu(layer)  # rectified linear Unit ... like a boss
+                                   padding='SAME')        # i feel like this should already be in variable, but w/e
+        layer = tf.nn.relu(layer)                         # rectified linear Unit ... like a boss
         log.debug("Finished Building a conv Layer:\n\t{}".format(layer))
         return layer, weights, biases
 
