@@ -19,15 +19,19 @@ __status__ = "Prototype"
 print("Alpha Griffin TF_Curses Project")
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
 import ag.logging as log
 import tensorflow as tf
+import numpy as np
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '5'
+
 working_path = os.getcwd()
-
+class Options(object):
+    def __init__(self):
+        pass
 
 class BuildModel(object):
-    def __init__(self, conv, fc, outputs):
+    def __init__(self, conv, fc, outputs, options=None):
         self.num_conv = conv
         self.num_fc = fc
         self.num_outputs = outputs
@@ -54,7 +58,7 @@ class BuildModel(object):
             last_num_f = num_f
             log.debug("Start shape= {}".format(start_shape))
             debugs = "New Features = {}".format(channel)
-            reducing_shape, w, b = self.new_conv_layer(input=img,
+            reducing_shape,  = self.new_conv_layer(input=img,
                                                        filter_size=int(f_size),
                                                        chan=int(channel),
                                                        num_filters=int(num_f)
@@ -217,81 +221,23 @@ class BuildModel(object):
         tf.add_to_collection("train", train)
         return train, loss, cost
 
-    """
-    with tf.variable_scope("sophmax"):
-        sophmax = tf.nn.softmax(x_image, name="sophmax")
-    tf.add_to_collection("sophmax_layer", sophmax)
 
-    with tf.variable_scope("mupen_method"):
-        cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
-        train_vars = tf.trainable_variables()
-        loss = cost + \
-               tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * \
-               0.001
-        # loss = cost + training_vars
-    tf.add_to_collection("loss", loss)
-    tf.summary.scalar("train_cost", loss);
 
-    #with tf.variable_scope("mupen_method"):
-    #    cost = tf.reduce_mean(tf.square(tf.subtract(input_tensor, x_image)))
-    #    training_vars = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()]) * 0.001
-    #    loss = cost + training_vars
-    #tf.add_to_collection("loss", loss)
+def main():
+    # hoping to use an ini file here... this class will probably still parse that though
+    options = Options()
+    # TODO: this is still missing a command line arg parser!
+    app = TF_Curses(options)
+    try:
+        app.main()
+        os.system('clear')
+    except KeyboardInterrupt:
+        app.exit_safely()
+        os.system('clear')
+        pass
 
-    with tf.variable_scope('Dropout_Optimizer_Train'):
-        train_drop_loss = tf.train.AdamOptimizer(learn_rate).minimize(loss)
-    tf.add_to_collection("train_op", train_drop_loss)
-    return train_drop_loss, loss, sophmax
-    """
-    """
-    def find_devices(self, ):
-        # do a known port scan for TF services
-        # parse that for ip and port
-        local_workers = []
-        server = tf.train.Server.create_local_server()
-        # do a scan for local gpu??? or tf_gpu defaults to that...
-        # im trying to split weights and matmuls ...
-        local_gpus = []
-
-        cluster = tf.train.ClusterSpec({"ps": server,
-                                        "worker": local_workers})
-
-        # Create and start a server for the local task.
-        server = tf.train.Server(cluster,
-                                 job_name=FLAGS.job_name,
-                                 task_index=FLAGS.task_index)
-
-        return local_workers, local_gpus
-
-    """
-    """
-    def build_graph(self, num_conv, num_fc, num_outputs):
-        # check the enviorment...
-        workers, gpus = find_devices()
-
-        # start a new graph for each worker.
-        if workers:
-            num_workers = len(workers)
-            cluster =
-            pass
-            for worker, i in enumerate(workers):
-                current_context = tf.Graph()
-                current_worker = "/job:worker/task:%d" % FLAGS.task_index
-                with current_context.container('AlphaGriffin_{}'.format(i)):
-                    with tf.device(tf.train.replica_device_setter(
-                            worker_device=current_worker,
-                            cluster=cluster)):
-                        # build up variables
-                        input_tensor, input_tensor, learn_rate = build_inputs()
-                        # take the inputed variables and implement them
-                        x_image = build_outputs(input_tensor,
-                                                num_conv,
-                                                num_fc,
-                                                num_outputs)
-                        # this is a training method that should be...
-                        # over written by another new class
-                        _ = training_method(x_image, input_tensor, learn_rate)
-                        # generic setup calls
-                        init_op = tf.global_variables_initializer
-                        merged = tf.summary.merge_all
-    """
+if __name__ == '__main__':
+    try:
+        main()
+    except:
+        log.error("and thats okay too.")
